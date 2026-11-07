@@ -10,7 +10,7 @@ import { translate } from '../src/recording/translate.ts'
 
 // Opt-in because contributors need not have Codex installed. This server is the only model endpoint.
 test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
-  'real Codex preserves injected context, runs against a local fixture model, and exposes recordable history',
+  'shared Codex daemon preserves injected context, runs a local fixture turn, and exposes recordable history',
   async () => {
     const home = await mkdtemp(join(tmpdir(), 'delta-native-'))
     const requests: any[] = []
@@ -79,8 +79,19 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
       join(home, 'config.toml'),
       `model = "gpt-6.1-sol"\nmodel_provider = "fixture"\n[model_providers.fixture]\nname = "Local test only"\nbase_url = "http://127.0.0.1:${address.port}"\nwire_api = "responses"\nrequires_openai_auth = false\nsupports_websockets = false\n`,
     )
-    const rpc = new Codex(['codex', 'app-server', '--listen', 'stdio://'], { CODEX_HOME: home })
+    const rpc = new Codex(undefined, { CODEX_HOME: home })
     try {
+      await mkdir(join(home, 'app-server-daemon'))
+      await writeFile(
+        join(home, 'app-server-daemon', 'settings.json'),
+        JSON.stringify({ shutdownGraceSeconds: 0, updater: { autoUpdateEnabled: false } }),
+      )
+      const daemon = spawnSync('codex', ['app-server', 'daemon', 'start'], {
+        env: { ...process.env, CODEX_HOME: home },
+        encoding: 'utf8',
+        timeout: 30_000,
+      })
+      expect(daemon.status, daemon.stderr).toBe(0)
       const started = await rpc.call('thread/start', {
         cwd: home,
         sandbox: 'read-only',
@@ -126,12 +137,19 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
       expect(updates.some((u) => JSON.stringify(u).includes('A colleague found'))).toBe(false)
     } finally {
       await rpc.close()
+      const stopped = spawnSync('codex', ['app-server', 'daemon', 'stop'], {
+        env: { ...process.env, CODEX_HOME: home },
+        encoding: 'utf8',
+        timeout: 30_000,
+      })
       server.closeAllConnections()
       await new Promise<void>((resolve) => server.close(() => resolve()))
-      await rm(home, { recursive: true, force: true })
+      // Keep the isolated profile if stopping fails; never remove a running daemon's state.
+      if (stopped.status === 0) await rm(home, { recursive: true, force: true })
+      expect(stopped.status, stopped.stderr).toBe(0)
     }
   },
-  30_000,
+  90_000,
 )
 
 test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(

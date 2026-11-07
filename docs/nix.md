@@ -79,6 +79,31 @@ not edit `~/.codex/config.toml`. Run Codex from inside the shell so its hooks
 inherit Node and Delta on PATH. A desktop app launched outside the shell does
 not automatically inherit the development environment.
 
+For an existing NixOS/Home Manager installation, keep Node, Codex, and Delta in
+the declarative package list. If those dependencies are already installed, use
+Codex's native marketplace commands to install this plugin; no global npm
+installation or system rebuild is needed. Codex keeps the marketplace and plugin
+cache in its writable user profile. Enable the required daemon with
+`codex features enable daemon_auto_start` and start it with
+`codex app-server daemon start`, then run the installed plugin's `doctor` command
+outside the development shell. Review the nine hooks in `/hooks` yourself.
+Home Manager must leave Codex's user configuration writable for these commands.
+
+Keep daemon upgrades under Nix's control too. Before starting it, set
+`updater.autoUpdateEnabled` to `false` in
+`~/.codex/app-server-daemon/settings.json`, preserving any existing settings:
+
+```json
+{ "updater": { "autoUpdateEnabled": false } }
+```
+
+This prevents Codex's background updater from replacing the daemon copied from
+the Nix package with an upstream binary. When existing sessions can be
+interrupted, run `codex app-server daemon update --from-cli --yes` to copy and pin
+the Nix-provided CLI package as the daemon. Repeat this command after upgrading
+Codex through Nix. This command may restart the daemon; avoid the plain
+`daemon update` command, which selects an upstream release instead.
+
 The Nix definitions cover these three systems; local validation was performed on
 x86_64 Linux. CI is configured to build and run the native fixture tests on
 Linux and Apple Silicon macOS. Evaluating a definition is not a cross-platform runtime test.

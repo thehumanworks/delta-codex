@@ -1,6 +1,8 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { EventEmitter } from 'node:events'
+import { Duplex } from 'node:stream'
+import WebSocket from 'ws'
 import { MAX_FRAME, terminate } from '../core/process.ts'
 
 export class RpcError extends Error {
@@ -15,6 +17,7 @@ export class RpcError extends Error {
 /** Connects to the user's existing Codex daemon; never starts a second agent harness. */
 export class Codex extends EventEmitter {
   private child?: ChildProcessWithoutNullStreams
+  private socket?: WebSocket
   private opening?: Promise<void>
   private next = 0
   private pending = new Map<
@@ -49,18 +52,22 @@ export class Codex extends EventEmitter {
       shell: false,
       env: { ...process.env, ...this.environment },
     }))
-    const lines = createInterface({ input: child.stdout })
+    // `app-server proxy` forwards raw bytes to the daemon's WebSocket socket.
+    // Only a standalone stdio app-server uses newline-delimited JSON directly.
+    const websocket = this.argv.includes('proxy')
+    const lines = websocket ? undefined : createInterface({ input: child.stdout })
     child.stdin.on('error', () => {})
     child.stderr.on('data', (chunk) => {
       this.stderr = (this.stderr + chunk.toString()).slice(-2000)
     })
     let length = 0
-    child.stdout.on('data', (chunk: Buffer) => {
-      const last = chunk.lastIndexOf(10)
-      length = last < 0 ? length + chunk.length : chunk.length - last - 1
-      if (length > MAX_FRAME) child.kill()
-    })
-    lines.on('line', (line) => {
+    if (!websocket)
+      child.stdout.on('data', (chunk: Buffer) => {
+        const last = chunk.lastIndexOf(10)
+        length = last < 0 ? length + chunk.length : chunk.length - last - 1
+        if (length > MAX_FRAME) child.kill()
+      })
+    const receive = (line: string) => {
       try {
         if (line.length > MAX_FRAME) throw new Error('Oversize Codex frame')
         const message = JSON.parse(line)
@@ -83,7 +90,8 @@ export class Codex extends EventEmitter {
         this.emit('diagnostic', String(error))
         child.kill()
       }
-    })
+    }
+    lines?.on('line', receive)
     this.done = new Promise((resolve) => {
       const closed = () => {
         for (const request of this.pending.values()) {
@@ -94,12 +102,38 @@ export class Codex extends EventEmitter {
         this.requests.clear()
         this.opening = undefined
         this.child = undefined
-        lines.close()
+        this.socket?.terminate()
+        this.socket = undefined
+        lines?.close()
         resolve()
       }
       child.once('error', closed)
       child.once('close', closed)
     })
+    if (websocket) {
+      const socket = (this.socket = new WebSocket('ws://localhost/', {
+        createConnection: () => Duplex.from({ readable: child.stdout, writable: child.stdin }),
+        handshakeTimeout: 10_000,
+        maxPayload: MAX_FRAME,
+        perMessageDeflate: false,
+      }))
+      socket.on('message', (data, binary) => {
+        if (binary) {
+          this.emit('diagnostic', 'Unexpected binary Codex frame')
+          child.kill()
+        } else receive(data.toString())
+      })
+      socket.on('error', (error) => {
+        this.stderr = String(error)
+        child.kill()
+      })
+      socket.on('close', () => child.kill())
+      await new Promise<void>((resolve, reject) => {
+        socket.once('open', resolve)
+        socket.once('error', reject)
+        socket.once('close', () => reject(new Error(`Codex daemon disconnected. ${this.stderr}`)))
+      })
+    }
     await this.request(
       'initialize',
       {
@@ -114,7 +148,10 @@ export class Codex extends EventEmitter {
   private send(value: unknown) {
     if (!this.child?.stdin.writable)
       throw new Error('Codex daemon is not connected. Start Codex with its shared daemon enabled.')
-    this.child.stdin.write(JSON.stringify(value) + '\n')
+    if (this.socket) {
+      if (this.socket.readyState !== WebSocket.OPEN) throw new Error('Codex daemon is not connected')
+      this.socket.send(JSON.stringify(value))
+    } else this.child.stdin.write(JSON.stringify(value) + '\n')
   }
 
   private request<T>(method: string, params: unknown, timeout: number): Promise<T> {

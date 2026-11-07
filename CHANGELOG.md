@@ -14,3 +14,7 @@ sandboxed package builds and checks, and Linux/macOS Nix CI coverage.
 Tests include an isolated real-Codex run against a local fixture model and a
 native plugin installation check. Live Delta cross-device acceptance remains
 documented separately.
+
+The shared-daemon transport uses WebSocket framing over Codex's raw socket
+proxy. The native fixture test covers this production transport, including a
+real turn, rather than only a standalone stdio app-server.
