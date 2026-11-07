@@ -39,11 +39,76 @@ the distinction between automated, account and desktop validation.
 
 ## Install
 
-Install the application CLI from [Delta's CLI documentation](https://delta.dev/docs/cli),
+Install Git, the application CLI from [Delta's CLI documentation](https://delta.dev/docs/cli),
 Node 22.19 or newer, and Codex 0.166.0 or newer. The `delta` executable must be
 Delta from delta.dev, not the Git diff viewer of the same name.
 
-From a source checkout:
+### Install from GitHub
+
+```sh
+codex plugin marketplace add https://github.com/thehumanworks/delta-codex.git --ref main
+codex plugin add delta-codex@delta-codex-local
+```
+
+Run these commands from any directory. Codex downloads the GitHub repository
+and installs its bundled plugin. The repository includes the compiled `dist/`
+files, so no manual clone, `npm ci`, or build is needed.
+
+**`delta-codex-local` is the marketplace's name**, including when its source is
+GitHub. It comes from `.agents/plugins/marketplace.json`; it does not mean you
+need a local development checkout. The plugin entry's `source.path: "./"`
+correctly points to the root of the downloaded repository.
+
+### Replace an existing local source with GitHub
+
+If you previously registered `/absolute/path/to/delta-codex`, use this sequence
+instead of the fresh-install commands above:
+
+```sh
+codex plugin marketplace remove delta-codex-local
+codex plugin marketplace add https://github.com/thehumanworks/delta-codex.git --ref main
+codex plugin add delta-codex@delta-codex-local
+codex plugin marketplace list --json
+```
+
+This replaces Codex's registered marketplace location while keeping the same
+plugin identifier, `delta-codex@delta-codex-local`. Do not change the repository's
+`source.path` to the GitHub URL. In the final command's output, find
+`delta-codex-local` and check that `marketplaceSource.sourceType` is `"git"` and
+`marketplaceSource.source` is `"https://github.com/thehumanworks/delta-codex.git"`.
+Its root is Codex's downloaded snapshot rather than your development checkout.
+Use the same `CODEX_HOME` profile for all commands.
+
+If the source is already `git@github.com:thehumanworks/delta-codex.git`, you are
+already fetching from GitHub over SSH. The same remove/add sequence switches
+that source to the public HTTPS URL if desired.
+
+The local-to-GitHub replacement sequence was verified with Codex 0.166.0 in an
+isolated profile against this public repository.
+
+### Finish installation
+
+Restart Codex, open **`/hooks`**, and review the nine Delta hooks. Start a new
+session in a Git repository and invoke **`$delta-codex:setup`** to check account
+readiness and optionally install the numbered CLI presets. In the desktop app,
+restart the app and use **Settings → Hooks** to review them. Hook trust is
+required and is never bypassed by the installer.
+
+### Update from GitHub
+
+```sh
+codex plugin marketplace upgrade delta-codex-local
+```
+
+This refreshes the registered source from `main`. Restart Codex to load the
+updated plugin, and review hooks again when Codex requests it. See the
+[official marketplace commands](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli).
+
+### Install a development checkout
+
+Use this when editing the plugin locally. If the GitHub source is already
+registered, remove it with `codex plugin marketplace remove delta-codex-local`
+before adding the checkout:
 
 ```sh
 nix develop  # optional; supplies the pinned tools described below
@@ -53,10 +118,7 @@ codex plugin marketplace add /absolute/path/to/delta-codex
 codex plugin add delta-codex@delta-codex-local
 ```
 
-Open **`/hooks`** in Codex and review the nine Delta hooks. Start a new Codex
-session in a Git repository. In the desktop app, install from the local
-marketplace and use **Settings → Hooks** to review them. Hook trust is required
-and is never bypassed by the installer.
+Then follow **Finish installation** above.
 
 Release packages include the executable and self-contained panel in `dist/`
 and need no runtime npm dependencies.
