@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Rename the marketplace from `delta-codex-local` to `delta-codex`. Install with
+  `codex plugin add delta-codex@delta-codex`; existing installations should follow
+  the README migration steps to avoid duplicate hooks and MCP tools.
+
 ## 0.2.0
 
 - Add typed local MCP tools and a self-contained MCP App collaboration panel.

@@ -47,17 +47,34 @@ Delta from delta.dev, not the Git diff viewer of the same name.
 
 ```sh
 codex plugin marketplace add https://github.com/thehumanworks/delta-codex.git --ref main
-codex plugin add delta-codex@delta-codex-local
+codex plugin add delta-codex@delta-codex
 ```
 
 Run these commands from any directory. Codex downloads the GitHub repository
 and installs its bundled plugin. The repository includes the compiled `dist/`
 files, so no manual clone, `npm ci`, or build is needed.
 
-**`delta-codex-local` is the marketplace's name**, including when its source is
-GitHub. It comes from `.agents/plugins/marketplace.json`; it does not mean you
-need a local development checkout. The plugin entry's `source.path: "./"`
-correctly points to the root of the downloaded repository.
+The install identifier uses `plugin@marketplace`: both are named `delta-codex`.
+The marketplace name comes from `.agents/plugins/marketplace.json`. Its plugin
+entry's `source.path: "./"` points to the root of the downloaded repository.
+
+### Migrate from `delta-codex-local`
+
+Earlier versions used the marketplace name `delta-codex-local`. Remove that
+installation before adding the renamed marketplace so only one copy supplies
+Delta's hooks and MCP tools:
+
+```sh
+codex plugin remove delta-codex@delta-codex-local
+codex plugin marketplace remove delta-codex-local
+codex plugin marketplace add https://github.com/thehumanworks/delta-codex.git --ref main
+codex plugin add delta-codex@delta-codex
+```
+
+Use the same `CODEX_HOME` profile throughout. Saved Delta session mappings and
+pending records remain in `$CODEX_HOME/delta` (default `~/.codex/delta`), or your
+configured `DELTA_CODEX_HOME`; they are separate from the removed plugin cache.
+Restart Codex and review the renamed installation's hooks as described below.
 
 ### Replace an existing local source with GitHub
 
@@ -65,16 +82,16 @@ If you previously registered `/absolute/path/to/delta-codex`, use this sequence
 instead of the fresh-install commands above:
 
 ```sh
-codex plugin marketplace remove delta-codex-local
+codex plugin marketplace remove delta-codex
 codex plugin marketplace add https://github.com/thehumanworks/delta-codex.git --ref main
-codex plugin add delta-codex@delta-codex-local
+codex plugin add delta-codex@delta-codex
 codex plugin marketplace list --json
 ```
 
 This replaces Codex's registered marketplace location while keeping the same
-plugin identifier, `delta-codex@delta-codex-local`. Do not change the repository's
+plugin identifier, `delta-codex@delta-codex`. Do not change the repository's
 `source.path` to the GitHub URL. In the final command's output, find
-`delta-codex-local` and check that `marketplaceSource.sourceType` is `"git"` and
+`delta-codex` and check that `marketplaceSource.sourceType` is `"git"` and
 `marketplaceSource.source` is `"https://github.com/thehumanworks/delta-codex.git"`.
 Its root is Codex's downloaded snapshot rather than your development checkout.
 Use the same `CODEX_HOME` profile for all commands.
@@ -82,9 +99,6 @@ Use the same `CODEX_HOME` profile for all commands.
 If the source is already `git@github.com:thehumanworks/delta-codex.git`, you are
 already fetching from GitHub over SSH. The same remove/add sequence switches
 that source to the public HTTPS URL if desired.
-
-The local-to-GitHub replacement sequence was verified with Codex 0.166.0 in an
-isolated profile against this public repository.
 
 ### Finish installation
 
@@ -97,7 +111,7 @@ required and is never bypassed by the installer.
 ### Update from GitHub
 
 ```sh
-codex plugin marketplace upgrade delta-codex-local
+codex plugin marketplace upgrade delta-codex
 ```
 
 This refreshes the registered source from `main`. Restart Codex to load the
@@ -107,7 +121,7 @@ updated plugin, and review hooks again when Codex requests it. See the
 ### Install a development checkout
 
 Use this when editing the plugin locally. If the GitHub source is already
-registered, remove it with `codex plugin marketplace remove delta-codex-local`
+registered, remove it with `codex plugin marketplace remove delta-codex`
 before adding the checkout:
 
 ```sh
@@ -115,7 +129,7 @@ nix develop  # optional; supplies the pinned tools described below
 npm ci
 npm run build
 codex plugin marketplace add /absolute/path/to/delta-codex
-codex plugin add delta-codex@delta-codex-local
+codex plugin add delta-codex@delta-codex
 ```
 
 Then follow **Finish installation** above.

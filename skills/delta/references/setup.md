@@ -15,9 +15,14 @@ For a local checkout of this plugin:
 
 1. `npm ci && npm run build` (development checkouts only; release packages include the bundle).
 2. `codex plugin marketplace add /absolute/path/to/delta-codex`.
-3. `codex plugin add delta-codex@delta-codex-local`, or install from the plugin browser.
+3. `codex plugin add delta-codex@delta-codex`, or install from the plugin browser.
 4. Review its hooks in `/hooks` or the desktop app's hook settings.
 5. Start a new Codex session in a Git checkout and invoke `$delta`.
+
+For installation from GitHub or migration from the old `delta-codex-local`
+marketplace, follow the repository's [installation instructions](../../../README.md#install).
+Remove the old plugin before installing under the new marketplace name to
+avoid duplicate hooks and MCP tools. Keep saved Delta state intact.
 
 Codex does not automatically trust plugin hooks. A changed hook script needs
 review again. Do not edit trust hashes or use a hook-trust bypass flag.

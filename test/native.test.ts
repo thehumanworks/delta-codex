@@ -8,7 +8,7 @@ import { Codex, history } from '../src/codex/rpc.ts'
 import { deadline } from '../src/core/process.ts'
 import { translate } from '../src/recording/translate.ts'
 import { managePresets, PRESETS } from '../src/codex/presets.ts'
-import { Recording, freshBinding } from '../src/recording/store.ts'
+import { Recording, freshBinding, stage } from '../src/recording/store.ts'
 import { atomicJson } from '../src/core/storage.ts'
 
 // Opt-in because contributors need not have Codex installed. This server is the only model endpoint.
@@ -155,9 +155,9 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
   90_000,
 )
 
-test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
-  'Codex installs skills, untrusted hooks and profile-scoped MCP tools with native session metadata',
-  async () => {
+test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1').each(['fresh', 'migrated'])(
+  '%s Codex installation exposes skills, untrusted hooks and profile-scoped MCP tools with native session metadata',
+  async (installation) => {
     const temp = await mkdtemp(join(tmpdir(), 'delta-plugin-install-')),
       home = join(temp, 'codex'),
       root = join(temp, 'plugin')
@@ -167,17 +167,47 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
     try {
       for (const file of ['.agents', '.codex-plugin', '.mcp.json', 'skills', 'hooks', 'bin', 'dist'])
         await cp(resolve(file), join(root, file), { recursive: true })
-      for (const args of [
-        ['plugin', 'marketplace', 'add', root],
-        ['plugin', 'add', 'delta-codex@delta-codex-local', '--json'],
-      ]) {
+      const run = (args: string[]) => {
         const result = spawnSync('codex', args, {
           cwd: home,
           env: { ...process.env, CODEX_HOME: home },
           encoding: 'utf8',
+          timeout: 30_000,
         })
         expect(result.status, result.stderr).toBe(0)
+        return result.stdout
       }
+      const retained = freshBinding({
+        session: 'migration-fixture',
+        cwd: home,
+        thread: 'synthetic-retained-thread',
+        reference: 'opaque:retained',
+        kind: 'own',
+        contract: 10,
+      })
+      retained.stopped = true
+      stage(retained, { sessionUpdate: 'state_update', state: 'idle' })
+      const retainedPath = Recording.path(join(home, 'delta'), retained.session)
+      await atomicJson(retainedPath, retained)
+      const originalState = await readFile(retainedPath, 'utf8')
+      if (installation === 'migrated') {
+        const legacyRoot = join(temp, 'legacy-plugin')
+        await cp(root, legacyRoot, { recursive: true })
+        const manifestPath = join(legacyRoot, '.agents', 'plugins', 'marketplace.json')
+        const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+        manifest.name = 'delta-codex-local'
+        await atomicJson(manifestPath, manifest)
+        run(['plugin', 'marketplace', 'add', legacyRoot])
+        run(['plugin', 'add', 'delta-codex@delta-codex-local', '--json'])
+        run(['plugin', 'remove', 'delta-codex@delta-codex-local'])
+        run(['plugin', 'marketplace', 'remove', 'delta-codex-local'])
+      }
+      run(['plugin', 'marketplace', 'add', root])
+      run(['plugin', 'add', 'delta-codex@delta-codex', '--json'])
+      const marketplaces = JSON.parse(run(['plugin', 'marketplace', 'list', '--json'])).marketplaces
+      expect(marketplaces.some((entry: any) => entry.name === 'delta-codex')).toBe(true)
+      expect(marketplaces.some((entry: any) => entry.name === 'delta-codex-local')).toBe(false)
+      expect(await readFile(retainedPath, 'utf8')).toBe(originalState)
       const hooks = await rpc.call('hooks/list', { cwds: [home] })
       expect(hooks.data[0].errors).toEqual([])
       expect(hooks.data[0].hooks).toHaveLength(9)

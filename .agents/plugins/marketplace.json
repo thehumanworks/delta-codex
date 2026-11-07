@@ -1,5 +1,5 @@
 {
-  "name": "delta-codex-local",
+  "name": "delta-codex",
   "interface": { "displayName": "Delta for Codex" },
   "plugins": [
     {
