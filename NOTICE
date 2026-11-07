@@ -1,0 +1,26 @@
+Delta for Codex
+Copyright (c) 2026 Delta Codex contributors.
+Licensed under GNU Affero General Public License, version 3 only.
+
+This project is an independent Codex integration and is not an official release
+of Zed Industries or OpenAI.
+
+Adapted code and tests:
+  src/core/json.ts, src/core/paths.ts, src/core/text.ts
+  src/cli/thread-commands.ts
+  src/watch/conversation.ts
+  test/cli-fixtures.ts, test/conversation.test.ts, test/thread-commands.test.ts
+  test/fixtures/cli/*
+
+These files are adapted from Delta for pi, revision
+c0b0e8721a34e55ffb41ba20af8d1af149e40943, supplied as ../delta-pi.
+That project ports Zed Industries' Delta for Claude Code, revision
+ac769c681ba7a95ec7347b591f0858857a1a9e80:
+https://github.com/zed-industries/delta-claude
+Copyright belongs to the respective original authors, including Zed Industries.
+The upstream projects are distributed under AGPL-3.0-only; see LICENSE.
+
+Modifications include Codex producer identity, contracts through version 10,
+Codex-facing wording, and adapted protocol/context test expectations. The Codex
+transport, bridge, recording store, item translator, command surface, packaging,
+and additional tests are new implementation work informed by those references.

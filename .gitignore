@@ -1,0 +1,10 @@
+node_modules/
+coverage/
+*.tgz
+*.zip
+.delta/
+dist/*.map
+release/
+.direnv/
+result
+result-*

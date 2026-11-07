@@ -1,0 +1,21 @@
+{
+  "name": "delta-codex",
+  "version": "0.1.0",
+  "description": "Share Codex conversations and code, join Delta threads, and collaborate across coding agents.",
+  "license": "AGPL-3.0-only",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Delta for Codex",
+    "shortDescription": "Collaborate on conversations and code",
+    "longDescription": "Record native Codex sessions to Delta, synchronize Git checkouts, join shared threads, and receive teammate activity. A local integration using the Delta CLI and Codex app-server.",
+    "developerName": "Delta Codex contributors",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://delta.dev",
+    "defaultPrompt": [
+      "Use Delta to share this Codex conversation privately.",
+      "Use Delta to join a teammate's thread."
+    ]
+  }
+}

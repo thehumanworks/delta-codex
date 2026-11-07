@@ -1,0 +1,113 @@
+{
+  "description": "Delta records explicitly shared Codex sessions and protects turns after collaborator takeover.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}
