@@ -1,12 +1,15 @@
 import { test, expect } from 'vitest'
 import { createServer } from 'node:http'
-import { mkdtemp, writeFile, rm, cp, mkdir } from 'node:fs/promises'
+import { mkdtemp, writeFile, readFile, rm, cp, mkdir } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Codex, history } from '../src/codex/rpc.ts'
 import { deadline } from '../src/core/process.ts'
 import { translate } from '../src/recording/translate.ts'
+import { managePresets, PRESETS } from '../src/codex/presets.ts'
+import { Recording, freshBinding } from '../src/recording/store.ts'
+import { atomicJson } from '../src/core/storage.ts'
 
 // Opt-in because contributors need not have Codex installed. This server is the only model endpoint.
 test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
@@ -153,7 +156,7 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
 )
 
 test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
-  'Codex installs the release layout and discovers all four skills and nine untrusted hooks',
+  'Codex installs skills, untrusted hooks and profile-scoped MCP tools with native session metadata',
   async () => {
     const temp = await mkdtemp(join(tmpdir(), 'delta-plugin-install-')),
       home = join(temp, 'codex'),
@@ -162,7 +165,7 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
     await mkdir(root)
     const rpc = new Codex(['codex', 'app-server', '--listen', 'stdio://'], { CODEX_HOME: home })
     try {
-      for (const file of ['.agents', '.codex-plugin', 'skills', 'hooks', 'bin', 'dist'])
+      for (const file of ['.agents', '.codex-plugin', '.mcp.json', 'skills', 'hooks', 'bin', 'dist'])
         await cp(resolve(file), join(root, file), { recursive: true })
       for (const args of [
         ['plugin', 'marketplace', 'add', root],
@@ -186,12 +189,83 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
       expect(discovered.plugin.skills.map((skill: any) => skill.name).sort()).toEqual([
         'delta-codex:delta',
         'delta-codex:join',
+        'delta-codex:setup',
         'delta-codex:share',
         'delta-codex:status',
       ])
+      const { thread } = await rpc.call('thread/start', {
+        cwd: home,
+        sandbox: 'read-only',
+        approvalPolicy: 'never',
+      })
+      const saved = freshBinding({
+        session: thread.id,
+        cwd: home,
+        thread: 'synthetic-thread',
+        reference: 'opaque:test',
+        kind: 'own',
+        contract: 10,
+      })
+      saved.stopped = true
+      saved.visibility = 'private'
+      saved.title = 'Native MCP fixture'
+      await atomicJson(Recording.path(join(home, 'delta'), thread.id), saved)
+      const catalog = await rpc.call('mcpServerStatus/list', { threadId: thread.id })
+      const mcp = catalog.data.find((entry: any) => entry.tools?.delta_panel)
+      expect(mcp, JSON.stringify(catalog) + (rpc as any).stderr).toBeDefined()
+      expect(mcp.tools.delta_panel._meta['openai/ui'].entrypoints).toEqual([
+        { type: 'global' },
+        { type: 'thread' },
+      ])
+      expect(mcp.resources.some((r: any) => r.uri === 'ui://delta/workspace.html')).toBe(true)
+      const result = await rpc.call('mcpServer/tool/call', {
+        threadId: thread.id,
+        server: mcp.name,
+        tool: 'delta_panel',
+        arguments: {},
+      })
+      expect(result.isError).not.toBe(true)
+      expect(result.structuredContent.data).toMatchObject({
+        boundSession: thread.id,
+        session: { session: thread.id, thread: 'synthetic-thread', stopped: true, visibility: 'private' },
+      })
+      const refused = await rpc.call('mcpServer/tool/call', {
+        threadId: thread.id,
+        server: mcp.name,
+        tool: 'delta_stop',
+        arguments: { session: 'different-session' },
+      })
+      expect(refused.isError).toBe(true)
     } finally {
       await rpc.close()
       await rm(temp, { recursive: true, force: true })
+    }
+  },
+  60_000,
+)
+
+test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
+  'presets use versioned native config edits and preserve occupied and customized slots',
+  async () => {
+    const home = await mkdtemp(join(tmpdir(), 'delta-presets-'))
+    const config = join(home, 'config.toml')
+    const rpc = () => new Codex(['codex', 'app-server', '--listen', 'stdio://'], { CODEX_HOME: home })
+    try {
+      await writeFile(config, '# User comment\n[tui.presets.1]\nlabel = "Mine"\ninput = "Keep me"\n')
+      const added = await managePresets('install', rpc())
+      expect(added.assigned.map((p) => p.slot)).toEqual(['2', '3', '4'])
+      expect((await managePresets('install', rpc())).changed).toBe(0)
+      let text = await readFile(config, 'utf8')
+      expect(text).toContain('# User comment')
+      text = text.replace(PRESETS[0]!.input, 'My customized Delta shortcut')
+      await writeFile(config, text)
+      expect((await managePresets('remove', rpc())).changed).toBe(2)
+      text = await readFile(config, 'utf8')
+      expect(text).toContain('My customized Delta shortcut')
+      expect(text).toContain('Keep me')
+      expect(text).not.toContain('Delta join')
+    } finally {
+      await rm(home, { recursive: true, force: true })
     }
   },
   30_000,

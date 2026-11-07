@@ -27,6 +27,10 @@ and additional tests are new implementation work informed by those references.
 
 Bundled dependency: ws (https://github.com/websockets/ws), MIT license.
 
+The MCP server and app also bundle MCP SDKs, OpenAI MCP extensions, Zod and
+their required dependencies. Complete package versions and license texts for
+both bundles are generated in dist/THIRD_PARTY_NOTICES.txt.
+
 Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
 Copyright (c) 2013 Arnout Kazemier and contributors
 Copyright (c) 2016 Luigi Pinca and contributors

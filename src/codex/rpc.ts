@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events'
 import { Duplex } from 'node:stream'
 import WebSocket from 'ws'
 import { MAX_FRAME, terminate } from '../core/process.ts'
+import { VERSION } from '../version.ts'
 
 export class RpcError extends Error {
   constructor(
@@ -137,7 +138,7 @@ export class Codex extends EventEmitter {
     await this.request(
       'initialize',
       {
-        clientInfo: { name: 'delta_codex', title: 'Delta for Codex', version: '0.1.0' },
+        clientInfo: { name: 'delta_codex', title: 'Delta for Codex', version: VERSION },
         capabilities: { experimentalApi: true },
       },
       10_000,

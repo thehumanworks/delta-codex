@@ -378,3 +378,105 @@ test('an explicit stop survives an automatic-sync policy and a resumed session',
     await f.clean()
   }
 })
+
+test('activation and periodic polling share one preparation and retain the attached opaque reference', async () => {
+  const f = await fixture()
+  const command = f.delta.command.bind(f.delta)
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let creating = false,
+    count = 0
+  f.delta.command = async (args) => {
+    if (args[0] === 'worktree' && args[1] === 'create') {
+      creating = true
+      count++
+      await gate
+    }
+    const result = await command(args)
+    if (args[0] === 'worktree' && args[1] === 'attach') {
+      const thread = f.delta.target(args[args.indexOf('--thread') + 1]!)
+      thread.worktree = 'worktree#t=opaque/attached'
+      return { ...result, reference: thread.worktree }
+    }
+    return result
+  }
+  try {
+    const sharing = f.share()
+    await until(() => creating)
+    // Simulate a timer tick while activation is waiting for worktree creation.
+    const runtime = (f.bridge as any).sessions.get('native')
+    const tick = (f.bridge as any).schedule(runtime)
+    release()
+    await sharing
+    await tick
+    expect(count).toBe(1)
+    expect((await Recording.load(f.data, 'native'))?.state.worktree).toBe('worktree#t=opaque/attached')
+    const attachments = f.delta.commands.filter(
+      (args) => args[0] === 'worktree' && args[1] === 'attach',
+    ).length
+    await f.bridge.retry('native')
+    expect(f.delta.commands.filter((args) => args[0] === 'worktree' && args[1] === 'attach')).toHaveLength(
+      attachments,
+    )
+    expect((await Recording.load(f.data, 'native'))?.state.next).toBeGreaterThan(1)
+  } finally {
+    release()
+    await f.clean()
+  }
+})
+
+test('status refresh distinguishes local outbox delivery from cloud upload and audience confirmation', async () => {
+  const f = await fixture(),
+    status = f.delta.status.bind(f.delta)
+  let uploaded = false
+  f.delta.status = async (reference, session) => ({
+    ...(await status(reference, session)),
+    visibility: uploaded ? 'private' : null,
+    url: uploaded ? 'https://delta.example/private' : null,
+    upload: { state: uploaded ? 'uploaded' : 'queued', organization_id: 'org_test', error: null },
+  })
+  try {
+    const shared = await f.share()
+    expect(shared).toMatchObject({ pending: 0, upload: { state: 'queued' } })
+    expect((shared as any).visibility).toBeUndefined()
+    uploaded = true
+    const runtime = (f.bridge as any).sessions.get('native')
+    runtime.lastMetadata = 0
+    await (f.bridge as any).schedule(runtime)
+    expect(f.bridge.status('native')).toMatchObject({
+      pending: 0,
+      visibility: 'private',
+      url: 'https://delta.example/private',
+      upload: { state: 'uploaded' },
+    })
+  } finally {
+    await f.clean()
+  }
+})
+
+test('a failed cloud status refresh does not block recording another native turn', async () => {
+  const f = await fixture()
+  try {
+    await f.share()
+    f.delta.status = async () => {
+      throw new Error('disconnected')
+    }
+    f.codex.threads.get('native')!.turns.push({
+      id: 'offline-turn',
+      status: 'completed',
+      items: [{ type: 'agentMessage', id: 'offline-answer', text: 'Preserve this offline answer' }],
+    })
+    const runtime = (f.bridge as any).sessions.get('native')
+    runtime.lastMetadata = 0
+    await (f.bridge as any).schedule(runtime)
+    const records = f.delta.producers.get('native')!.records.get('native')!
+    expect(JSON.stringify(records)).toContain('Preserve this offline answer')
+    expect(f.bridge.status('native')).toMatchObject({
+      diagnostic: expect.stringContaining('Cloud status unavailable'),
+    })
+  } finally {
+    await f.clean()
+  }
+})

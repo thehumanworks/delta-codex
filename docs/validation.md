@@ -1,7 +1,9 @@
 # Validation and release acceptance
 
 Automated checks distinguish protocol evidence from live-service acceptance.
-No test points at a real Delta account or a paid model endpoint.
+No automated test points at a real Delta account or a paid model endpoint.
+The separately authorized manual 0.2.0 account check, including its incomplete
+steps, is recorded in [UX tests and acceptance](testing.md).
 
 | Check                  | Coverage                                                                                                                                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -9,6 +11,7 @@ No test points at a real Delta account or a paid model endpoint.
 | `npm test`             | Reference CLI parsers and remote context, translation, images, atomic storage, partial acknowledgments, retries, fencing, settings, sharing, joining, completed children, approvals, private IPC |
 | `npm run test:native`  | Installed Codex 0.166.0, isolated profile, local fixture model, real history and context injection; real marketplace installation and discovery of all nine untrusted hooks                      |
 | `npm run test:package` | Clean npm archive installation, required files, no runtime dependencies, executable CLI                                                                                                          |
+| `npm run test:ui`      | Built panel through the standard MCP Apps browser bridge, with synthetic operations and optional-capability fallbacks                                                                            |
 | `npm run format:check` | Consistent source and documentation formatting                                                                                                                                                   |
 | `nix flake check`      | Sandboxed build and portable tests, pinned npm dependency integrity, generated-bundle consistency, installed CLI, Nix formatting                                                                 |
 | Nix CI                 | Linux/Apple Silicon macOS builds and native fixture tests using the pinned shell; all three system definitions evaluated                                                                         |

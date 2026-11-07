@@ -1,6 +1,6 @@
 {
   "name": "delta-codex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Native Codex collaboration through Delta threads and synchronized checkouts",
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -18,6 +18,7 @@
     "skills",
     ".codex-plugin",
     ".agents",
+    ".mcp.json",
     "README.md",
     "PARITY.md",
     "NOTICE",
@@ -38,16 +39,27 @@
     "test:package": "node scripts/test-package.mjs",
     "prepack": "npm run build",
     "test:native": "node scripts/test-native.mjs",
+    "test:ui": "node scripts/test-ui.mjs",
     "pretest": "npm run build"
   },
+  "overrides": {
+    "@openai/mcp-extensions": {
+      "zod": "$zod"
+    }
+  },
   "devDependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@openai/mcp-extensions": "0.2.1",
     "@types/node": "^22.19.0",
     "@types/ws": "^8.18.2",
     "esbuild": "^0.28.2",
+    "playwright-core": "1.65.0",
     "prettier": "^3.6.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
     "vitest": "^5.1.0",
-    "ws": "^8.22.1"
+    "ws": "^8.22.1",
+    "zod": "4.6.7"
   }
 }

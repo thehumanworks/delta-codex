@@ -7,6 +7,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { Bridge, type Hook } from './bridge.ts'
 import { atomicJson, digest, readJson } from './core/storage.ts'
 import { MAX_FRAME, deadline } from './core/process.ts'
+import { VERSION } from './version.ts'
 
 type Endpoint = { token: string; socket: string; pid: number; version: 1 }
 export type Request = { method: string; params: any }
@@ -198,7 +199,7 @@ async function dispatch(bridge: Bridge, request: Request, shutdown?: () => void)
   const p = request.params ?? {}
   switch (request.method) {
     case 'ping':
-      return { version: '0.1.0', pid: process.pid }
+      return { version: VERSION, pid: process.pid }
     case 'shutdown':
       shutdown?.()
       return { stopping: true }

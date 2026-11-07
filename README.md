@@ -4,7 +4,7 @@ Share a native Codex conversation and its Git checkout through [Delta](https://d
 then continue with teammates using Codex, Claude Code, pi, or the Delta app.
 
 This is an independent, local Codex plugin prepared for review by the Zed team.
-It is not an official Zed or OpenAI release. Version **0.1.0** targets Codex CLI
+It is not an official Zed or OpenAI release. Version **0.2.0** targets Codex CLI
 **0.166.0+**, Node **22.19+**, and Delta recording contracts **8–10**.
 
 ## What it does
@@ -23,12 +23,19 @@ It is not an official Zed or OpenAI release. Version **0.1.0** targets Codex CLI
   them, and inspect their results and pending approvals.
 - Search shared history, inspect thread trees, fork, merge, manage teams, and
   preserve rejected offline changes before recovery.
+- Use typed MCP tools, opt-in numbered CLI presets, and an MCP App collaboration
+  panel with sharing, joining, status, recovery and child-run controls.
 
 The plugin uses the [Delta CLI integration contract](https://delta.dev/docs/cli/build-a-plugin)
 and [Codex's app-server](https://learn.chatgpt.com/docs/app-server) for native sessions.
 It does not modify Codex transcripts or either
 application's database. See [parity and limitations](PARITY.md) for the precise
 support boundary.
+
+The [UX research](docs/ux-research.md) records host capabilities and native
+compatibility findings. The [UX plan](docs/ux-plan.md) tracks the delivered
+scope and remaining platform acceptance. See [testing](docs/testing.md) for
+the distinction between automated, account and desktop validation.
 
 ## Install
 
@@ -51,7 +58,8 @@ session in a Git repository. In the desktop app, install from the local
 marketplace and use **Settings → Hooks** to review them. Hook trust is required
 and is never bypassed by the installer.
 
-Release packages include `dist/cli.js` and need no runtime npm dependencies.
+Release packages include the executable and self-contained panel in `dist/`
+and need no runtime npm dependencies.
 The compatibility manifest in `.codex-plugin/` is intentional: the installed
 Codex 0.166.0 loader skipped bundled hooks when a root portable manifest was
 present. An integration test installs this layout and checks hook discovery.
@@ -71,6 +79,7 @@ Choose a focused skill in the CLI's `/skills` picker, or type `$` to select it:
 | `delta-codex:join`   | Open a Delta thread in a fresh Codex session with its shared checkout and context.       |
 | `delta-codex:status` | Check this session's recording, pending uploads, diagnostics, and collaborator presence. |
 | `delta-codex:delta`  | Configure repository sync, search history, run isolated work, or recover recording.      |
+| `delta-codex:setup`  | Check readiness and optionally install numbered CLI shortcuts.                           |
 
 For example, invoke `$delta-codex:status` to check this session. These are skill
 entry points; the plugin does not register native `/delta` slash commands or
@@ -85,6 +94,38 @@ custom terminal widgets. You can also ask Codex directly:
 > Check this session's Delta sync status.
 
 > Set up automatic private Delta sync for this repository.
+
+For CLI shortcuts, ask to install Delta presets or run:
+
+```sh
+node /path/to/delta-codex/bin/delta-codex.mjs presets install
+```
+
+Open `/presets` to see the assigned numbered slots for **Delta status**, **Delta
+share**, and **Delta join**. The installer uses free slots and preserves existing
+shortcuts. `presets list` inspects them; `presets remove` removes only unchanged
+Delta entries. Restart the CLI if its menu has not refreshed. Skills remain
+available and are the workflow instructions behind these shortcuts.
+
+In a ChatGPT app host with a local executor and MCP Apps support, ask to open
+the Delta panel. It shows the selected native session, checkout, audience,
+recording state and pending delivery, with share, join, link, retry and stop
+controls. It also provides thread browsing and child-run controls. Supporting
+hosts can expose its global/thread sidebar entry points and fullscreen mode.
+Routine button actions call tools directly. Status refreshes every 15 seconds
+while visible; it is a snapshot, not an instantaneous delivery guarantee.
+
+An **Open in Codex** button returns to the correct native session; resume
+arguments remain visible when a host cannot handle the deep link. Native
+approvals stay in Codex. A web-only ChatGPT session cannot access the local
+checkout. Actual ChatGPT desktop rendering and sidebar placement require
+platform acceptance; the standard iframe bridge is covered by browser tests.
+
+MCP discovery starts no bridge and uploads nothing. The tools use Codex's
+`_meta.threadId`, and the package explicitly forwards the profile environment.
+Viewing another session does not retarget the active conversation: open it
+before changing its sharing or runs. Hosts without session metadata require
+an explicit native session selection; the plugin never picks the newest one.
 
 Codex checks the installed CLI, helps choose an organization, and uses the
 audience you request. The sign-in command opens Delta's browser flow when you

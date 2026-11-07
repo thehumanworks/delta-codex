@@ -10,6 +10,7 @@ import {
   type ThreadUser,
   type WatchChild,
   type ThreadMount,
+  type ThreadUpload,
 } from './cli/thread-commands.ts'
 import { Recording, freshBinding, stage } from './recording/store.ts'
 import { recordTurns, REMOTE_PREFIX } from './recording/translate.ts'
@@ -32,6 +33,8 @@ export type Hook = {
   [key: string]: unknown
 }
 type Runtime = {
+  preparing?: Promise<void>
+  upload?: ThreadUpload | null
   recording: Recording
   view: RemoteView
   watch?: Stream
@@ -118,6 +121,22 @@ export class Bridge {
     )
     if (runtime.lastMetadata < Date.now() - 10_000) {
       const metadata = await this.codex.call('thread/read', { threadId: recording.state.session })
+      try {
+        const remote = await this.delta.status(recording.state.reference, recording.state.session)
+        runtime.upload = remote.upload
+        if (
+          remote.visibility !== (recording.state.visibility ?? null) ||
+          remote.url !== (recording.state.url ?? null)
+        )
+          await recording.change((s) => {
+            s.visibility = remote.visibility ?? undefined
+            s.url = remote.url ?? undefined
+          })
+      } catch (error) {
+        // Optional cloud metadata must not block durable offline recording.
+        runtime.upload = undefined
+        runtime.diagnostic = `Cloud status unavailable: ${String(error)}`
+      }
       const firstPrompt = turns
         .flatMap((t) => t.items ?? [])
         .find((i: any) => i.type === 'userMessage')
@@ -246,12 +265,23 @@ export class Bridge {
     }
   }
 
-  private async prepare(runtime: Runtime) {
+  private prepare(runtime: Runtime) {
+    // Activation and the periodic tick can overlap while a mount is starting.
+    // One preparation owns worktree creation, attachment and mount replacement.
+    if (runtime.preparing) return runtime.preparing
+    const preparing = this.prepareSession(runtime).finally(() => {
+      if (runtime.preparing === preparing) runtime.preparing = undefined
+    })
+    runtime.preparing = preparing
+    return preparing
+  }
+
+  private async prepareSession(runtime: Runtime) {
     const { recording } = runtime,
       state = recording.state
     if (runtime.closing) throw new Error('Delta session activation was cancelled')
     await this.delta.contract()
-    await recording.reconcile(this.delta)
+    const frontier = await recording.reconcile(this.delta)
     if (runtime.closing) throw new Error('Delta session activation was cancelled')
     if (state.kind === 'join') await this.remount(runtime)
     else if (
@@ -278,7 +308,24 @@ export class Bridge {
           s.worktree = worktree
         })
       }
-      await this.delta.command(['worktree', 'attach', recording.state.worktree!, '--thread', state.reference])
+      const attached =
+        frontier.worktrees.status === 'available' &&
+        frontier.worktrees.items.some((tree) => tree.reference === recording.state.worktree)
+      if (!attached) {
+        const result = await this.delta.command([
+          'worktree',
+          'attach',
+          recording.state.worktree!,
+          '--thread',
+          state.reference,
+        ])
+        if (result.thread_id !== state.thread || typeof result.reference !== 'string')
+          throw new Error('Delta did not confirm the worktree attachment for this thread')
+        // Attach can return a thread-specific opaque timeline, different from create.
+        await recording.change((s) => {
+          s.worktree = result.reference as string
+        })
+      }
       const mounted = await this.delta.mount([
         'worktree',
         'mount',
@@ -701,6 +748,7 @@ export class Bridge {
           ...input.emails!,
         ])
       const status = await this.delta.status(recording.state.reference, input.session)
+      runtime.upload = status.upload
       await recording.change((s) => {
         s.url = status.url ?? undefined
         s.visibility = status.visibility ?? undefined
@@ -774,6 +822,7 @@ export class Bridge {
       cwd: r.recording.state.cwd,
       url: r.recording.state.url,
       visibility: r.recording.state.visibility,
+      upload: r.upload,
       ready: r.ready,
       pending: r.recording.state.pending.length,
       activeTurn: r.recording.state.active,
@@ -799,6 +848,9 @@ export class Bridge {
       ? {
           session,
           thread: saved.state.thread,
+          reference: saved.state.reference,
+          visibility: saved.state.visibility,
+          title: saved.state.title,
           cwd: saved.state.cwd,
           url: saved.state.url,
           recording: false,

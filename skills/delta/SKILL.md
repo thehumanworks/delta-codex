@@ -10,6 +10,13 @@ Focused entry points are available for [sharing](../share/SKILL.md),
 matching skill for those tasks; this general skill also covers repository
 sync, history, asynchronous work, and recovery.
 
+Prefer the typed `delta_*` MCP tools when available. `delta_panel` opens the
+collaboration view; `delta_status` returns concise data. Session operations use
+the host's native thread ID rather than inferring from the newest session.
+Read [onboarding](../setup/SKILL.md) for optional numbered CLI presets. Skills
+remain the workflow layer; tools and UI do not change authorization or recovery
+rules. Use the bundled CLI below when tools are unavailable.
+
 Run the bundled CLI with `node <plugin-root>/bin/delta-codex.mjs`. Resolve
 `<plugin-root>` as two directories above this skill's directory; use its absolute path and
 quote arguments. The bundle has no runtime npm dependencies. Do not assume the

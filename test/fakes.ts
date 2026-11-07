@@ -38,7 +38,10 @@ export class FakeCodex extends Codex {
       case 'thread/turns/list':
         if (!thread) throw new Error('Unknown Codex thread')
         return {
-          data: structuredClone(thread.turns).map((t) => ({ ...t, itemsView: 'full' })),
+          data: (params.sortDirection === 'desc'
+            ? structuredClone(thread.turns).reverse()
+            : structuredClone(thread.turns)
+          ).map((t) => ({ ...t, itemsView: 'full' })),
           nextCursor: null,
         }
       case 'thread/start': {

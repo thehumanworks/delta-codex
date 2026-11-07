@@ -5,6 +5,12 @@ description: Check the current Codex session's Delta sharing and synchronization
 
 # Check Delta status
 
+Prefer `delta_status` for concise data, or `delta_panel` when the user wants the
+collaboration controls. The MCP host supplies the calling native session; omit
+`session` for that default. If the host cannot bind a session, select an explicit
+ID supplied by the user. These reads do not start the bridge or recording.
+Use the CLI fallback below when the tools are unavailable.
+
 Run `node <plugin-root>/bin/delta-codex.mjs`, where `<plugin-root>` is two
 directories above this skill's directory. Use its absolute path and separate, safely
 quoted arguments; do not assume a command is installed on PATH. Results are JSON.
@@ -30,6 +36,8 @@ Summarize the returned fields that explain the session's condition:
   Missing fields are unknown, not evidence of a healthy connection.
 - Include the actual thread URL and visibility when present. Never manufacture
   a URL or infer private visibility from a missing value.
+- Report cloud `upload.state` separately. Zero local pending records does not
+  prove cloud delivery; a missing audience can still be awaiting upload.
 - Summarize presence, child threads, and the remote turn when relevant. Preserve
   opaque references and distinguish reported remote activity from this session.
 

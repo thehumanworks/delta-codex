@@ -5,16 +5,22 @@ import { Delta } from './cli/delta.ts'
 import { Codex } from './codex/rpc.ts'
 import { run, MAX_FRAME } from './core/process.ts'
 import { dataDirectory } from './core/storage.ts'
-import { ensureBridge, request, serve } from './ipc.ts'
+import { request, serve } from './ipc.ts'
+import { Operations } from './operations.ts'
+import { serveMcp } from './mcp/server.ts'
+import { VERSION } from './version.ts'
 import { writePolicy } from './settings.ts'
 import { Recording } from './recording/store.ts'
 import { readFile } from 'node:fs/promises'
 
 let hookEvent: any
 
-const HELP = `Delta for Codex 0.1.0
+const HELP = `Delta for Codex ${VERSION}
 
   delta-codex doctor
+  delta-codex mcp
+  delta-codex panel [--session CODEX_ID]
+  delta-codex presets list|install|remove
   delta-codex bridge-stop
   delta-codex setup --mode manual|private|organization [--org ID] [--cwd PATH]
   delta-codex share --session CODEX_ID --audience private|organization|invite --org ID [--email ADDRESS ...]
@@ -71,7 +77,7 @@ async function main() {
   })
   const [command, ...args] = positionals
   if (flags.version) {
-    console.log('0.1.0')
+    console.log(VERSION)
     return
   }
   if (!command || flags.help) {
@@ -93,12 +99,21 @@ async function main() {
     if (!args[0] || args[0].startsWith('-')) throw new Error(`${command} needs an explicit argument`)
     return args[0]
   }
-  const call = async (method: string, params: unknown, timeout?: number) => {
-    await ensureBridge(directory, fileURLToPath(import.meta.url))
-    return request(directory, { method, params }, timeout)
-  }
+  const operations = new Operations(fileURLToPath(import.meta.url), directory, delta)
+  const call = operations.bridge.bind(operations)
   let result: unknown
   switch (command) {
+    case 'mcp':
+      await serveMcp(fileURLToPath(import.meta.url))
+      return
+    case 'panel':
+      result = await operations.panel(flags.session || process.env.CODEX_THREAD_ID)
+      break
+    case 'presets':
+      if (!['list', 'install', 'remove'].includes(first()))
+        throw new Error('Use presets list, install or remove')
+      result = await operations.presets(first() as 'list' | 'install' | 'remove')
+      break
     case 'serve':
       await serve(directory)
       return
@@ -156,9 +171,9 @@ async function main() {
       break
     }
     case 'share':
-      result = await call('share', {
+      result = await operations.share({
         session: session(),
-        cwd,
+        cwd: flags.cwd ? cwd : undefined,
         audience: flags.audience,
         organization: flags.org,
         emails: flags.email,
@@ -168,7 +183,7 @@ async function main() {
       result = await call('join', { reference: first() })
       break
     case 'status':
-      result = await call('status', { session: flags.session })
+      result = flags.session ? await operations.status(flags.session) : await operations.recordings()
       break
     case 'retry':
     case 'stop':

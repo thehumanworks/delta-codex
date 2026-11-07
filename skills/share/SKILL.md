@@ -5,6 +5,13 @@ description: Share the current Codex conversation and Git checkout on Delta priv
 
 # Share with Delta
 
+Prefer `delta_share` when the typed MCP tool is available. Its host metadata
+identifies the calling native Codex session, so omit `session` unless the user
+supplied an exact target. A different target must be opened first. Use
+`delta_account` to resolve organizations and `delta_panel` for visual review.
+The audience, upload disclosure and recovery rules below apply to both tools
+and CLI. The CLI is the fallback when MCP is unavailable.
+
 Run `node <plugin-root>/bin/delta-codex.mjs`, where `<plugin-root>` is two
 directories above this skill's directory. Use its absolute path and separate, safely
 quoted arguments; do not assume a command is installed on PATH. Results are JSON.

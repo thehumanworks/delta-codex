@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delta workspace</title>
+    <style>
+      /* DELTA_CSS */
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <span class="eyebrow">DELTA / CODEX</span>
+          <h1>Work together</h1>
+        </div>
+        <button id="expand" hidden>Expand</button><button id="refresh">Refresh</button>
+      </header>
+      <p id="notice" role="status" aria-live="polite">Connecting to your workspace…</p>
+      <section aria-labelledby="session-heading">
+        <div class="row">
+          <h2 id="session-heading">Current session</h2>
+          <button id="browse">Choose session</button>
+        </div>
+        <div id="sessions"></div>
+        <div id="session"></div>
+      </section>
+      <section id="sharing">
+        <h2>Share this work</h2>
+        <p>
+          Sharing includes this conversation, tool inputs and outputs, visible reasoning, and nonignored
+          checkout files.
+        </p>
+        <form id="share-form">
+          <fieldset>
+            <legend>Audience</legend>
+            <label><input type="radio" name="audience" value="private" checked /> Private — only you</label
+            ><label><input type="radio" name="audience" value="organization" /> Organization members</label
+            ><label><input type="radio" name="audience" value="invite" /> Invited people</label>
+          </fieldset>
+          <label
+            >Organization ID<input
+              id="organization"
+              name="organization"
+              required
+              maxlength="256"
+              autocomplete="off"
+          /></label>
+          <label id="emails-label" hidden
+            >Email addresses, separated by commas<input
+              name="emails"
+              type="text"
+              maxlength="2000"
+              autocomplete="off"
+          /></label>
+          <label class="ack"
+            ><input name="reviewed" type="checkbox" required /> I have reviewed this session and checkout for
+            sharing.</label
+          >
+          <button type="submit" class="primary">Share selected session</button
+          ><button type="button" id="account">View account and organizations</button>
+        </form>
+        <div id="account-result"></div>
+      </section>
+      <section>
+        <h2>Join a teammate</h2>
+        <form id="join-form">
+          <label
+            >Delta link or reference<input
+              name="reference"
+              required
+              maxlength="2048"
+              placeholder="Paste a Delta thread link"
+              autocomplete="off" /></label
+          ><button type="submit">Join thread</button>
+        </form>
+        <div id="joined"></div>
+      </section>
+      <details>
+        <summary>Find threads and run child work</summary>
+        <form id="search-form">
+          <label>Search Delta<input name="query" required maxlength="1000" /></label><button>Search</button>
+        </form>
+        <form id="thread-form">
+          <label>Thread reference<input name="reference" required maxlength="2048" /></label
+          ><button name="view" value="show">Read thread</button
+          ><button name="view" value="tree">Show children</button>
+        </form>
+        <div id="thread-result"></div>
+        <form id="branch-form">
+          <label>New child name<input name="name" required maxlength="200" /></label
+          ><label><input type="checkbox" name="isolated" /> Separate checkout</label
+          ><button>Create child</button>
+        </form>
+        <form id="run-form">
+          <label>Child thread reference<input name="reference" required maxlength="2048" /></label
+          ><label>Task<textarea name="prompt" required maxlength="16000"></textarea></label
+          ><label><input type="checkbox" name="write" /> Allow writes within the parent’s permissions</label
+          ><button>Start child run</button>
+        </form>
+        <div id="run-result"></div>
+      </details>
+      <details>
+        <summary>CLI shortcuts</summary>
+        <p>
+          Install Delta status, share and join into free numbered slots. Existing shortcuts stay in place.
+        </p>
+        <button id="presets-install">Install shortcuts</button
+        ><button id="presets-remove">Remove unchanged Delta shortcuts</button>
+        <div id="presets-result"></div>
+      </details>
+      <footer>
+        Native Codex owns execution and approvals. Delta keeps conversation and checkout changes in sync.
+      </footer>
+    </main>
+    <dialog id="confirm-dialog">
+      <form method="dialog">
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-body"></p>
+        <button value="cancel">Cancel</button><button id="confirm-action" value="confirm">Confirm</button>
+      </form>
+    </dialog>
+    <script type="module">
+      /* DELTA_JS */
+    </script>
+  </body>
+</html>

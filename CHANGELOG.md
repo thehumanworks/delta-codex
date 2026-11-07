@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0
+
+- Add typed local MCP tools and a self-contained MCP App collaboration panel.
+  Includes session selection, explicit audiences, links, joining, sync/presence,
+  recovery, thread reads, child runs, steering, interruption and native approval
+  handoff. Skills and CLI commands remain supported.
+- Add opt-in numbered CLI presets and a setup/onboarding skill. Preserve user
+  shortcuts, comments and concurrent config edits.
+- Bind tools to native host session metadata, forward profile environment, keep
+  discovery side-effect free, and retain bounded text fallbacks.
+- Add protocol, native installation/profile, preset, browser and clean-package
+  coverage, plus documented UX research and acceptance boundaries.
+- Fix overlapping worktree preparation and retain Delta's returned attachment
+  reference. Refresh cloud upload, visibility and URL separately from local
+  recording delivery.
+
 ## 0.1.0
 
 Initial independent Codex integration. Adds native hooks and a private bridge,

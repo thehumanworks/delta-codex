@@ -5,6 +5,11 @@ description: Join a Delta thread from its link or opaque reference in a fresh Co
 
 # Join a Delta thread
 
+Prefer `delta_join` when available; pass the exact reference supplied by the
+user. Show its returned native-session navigation and resume arguments. The
+`delta_panel` join form offers the same operation without another model turn.
+The CLI fallback and import boundaries below remain supported.
+
 Run `node <plugin-root>/bin/delta-codex.mjs`, where `<plugin-root>` is two
 directories above this skill's directory. Use its absolute path and separate, safely
 quoted arguments; do not assume a command is installed on PATH. Results are JSON.

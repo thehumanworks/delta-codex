@@ -1,5 +1,10 @@
 # Parity and support boundary
 
+For the researched path toward richer CLI and ChatGPT app UX, see
+[UX research](docs/ux-research.md) and the [proposed plan](docs/ux-plan.md).
+The local surfaces are implemented in 0.2.0; optional host integrations and
+platform acceptance remain explicitly separated below.
+
 Reference points reviewed on 2026-11-06:
 
 | Source                                     | Revision                                                  |
@@ -33,8 +38,8 @@ translation, native app-server and packaging.
 | Offline owned recording           | `--acknowledge local`, retry hints and backoff                                                  | Fake CLI tests; actual multi-device offline conflict needs acceptance testing                                                                  |
 | Takeover                          | `turn/interrupt` plus late `PreToolUse` denial                                                  | Bridge tests; already executed tool effects cannot be undone                                                                                   |
 | Live messages/comments            | Watch snapshot, edits/removals, ledger, bounded context injection at idle                       | Adapted context tests and bridge tests; incoming data never starts a turn                                                                      |
-| Presence and children             | Available in JSON status                                                                        | No custom Codex transcript pane or persistent status band                                                                                      |
-| Join                              | Access check, all worktrees mounted, fresh native thread, explicit resume command               | Bridge/native tests; no automatic desktop-tab switch                                                                                           |
+| Presence and children             | JSON status and the refreshable MCP App panel                                                   | Browser bridge coverage; no custom CLI transcript pane or persistent status band                                                               |
+| Join                              | Access check, all worktrees mounted, fresh native thread, explicit resume command               | Bridge/native tests; returned native deep link and resume arguments, no forced tab switch                                                      |
 | Worktree attachment changes       | Replacement mount becomes ready before old mount releases                                       | Implemented; changed aggregate directory requires fresh join                                                                                   |
 | Completed subagent backfill       | Discover native child IDs and read retained histories                                           | Bridge test; expands pi's unsupported case                                                                                                     |
 | Isolation                         | Delta isolated worktrees and explicit merge                                                     | Branch test; actual merge is delegated to Delta and not live-tested                                                                            |
@@ -44,6 +49,18 @@ translation, native app-server and packaging.
 | Recovery                          | Fork-before-discard; preserve local outbox; fresh producer on continuation                      | Failure-order test; does not retarget old sequence numbers                                                                                     |
 | Delta updates                     | Explicit CLI update/check                                                                       | No unattended application restart                                                                                                              |
 | Plugin updates                    | Normal Codex marketplace upgrade and hook review                                                | No private self-update service or custom update banner                                                                                         |
+
+## New UX surfaces in 0.2.0
+
+| Surface                 | Implemented behavior                                                                                   | Evidence / boundary                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI presets             | Opt-in status/share/join in free numbered slots; exact-match removal                                   | Native config edits preserve comments and custom slots; no named `/delta` handler                                                                  |
+| Agent tools             | Typed operations, host-bound session identity, bounded results                                         | MCP protocol tests and actual packaged tool calls through Codex 0.166                                                                              |
+| MCP App                 | Sharing/audience, organizations, sync/upload state, links, join, recovery, thread browsing, child runs | Standard SDK host-bridge browser tests; actual ChatGPT desktop rendering remains unverified                                                        |
+| Sidebar/fullscreen      | Global/thread entrypoint metadata and capability-based expansion                                       | Native metadata discovery; sidebar placement is host-controlled and needs desktop acceptance                                                       |
+| Approvals               | Pending request inspection and native-session handoff                                                  | No automatic approvals or broad approval tool in MCP; existing explicit CLI answers remain                                                         |
+| Local profile isolation | Forward profile variables and use native `_meta.threadId`                                              | Isolated installation test reads its synthetic state and rejects cross-thread writes                                                               |
+| Private account smoke   | Authenticated native turn, private Delta cloud audience, transcript delivery, native join creation     | Authorized synthetic-data check on 2026-11-07; later Delta disconnection prevented final mounted-file/stop recheck; see [testing](docs/testing.md) |
 
 ## Codex-specific constraints
 

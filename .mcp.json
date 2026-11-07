@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "delta": {
+      "command": "node",
+      "args": ["bin/delta-codex.mjs", "mcp"],
+      "cwd": ".",
+      "env_vars": ["CODEX_HOME", "DELTA_CODEX_HOME", "DELTA_CODEX_CODEX_BIN", "DELTA_CODEX_DELTA_BIN"]
+    }
+  }
+}

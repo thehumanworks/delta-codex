@@ -19,6 +19,7 @@ buildNpmPackage {
       ../.github
       ../.envrc
       ../.gitignore
+      ../.mcp.json
       ../.prettierignore
       ../.prettierrc.json
       ../AGENTS.md
@@ -45,7 +46,7 @@ buildNpmPackage {
     ];
   };
 
-  npmDepsHash = "sha256-idCGKgcuiGJdxOt0ohIngS+DRCa/7mOAtgxAmH+hLHc=";
+  npmDepsHash = "sha256-dJeSC6JDhgH8/W9qxGuTBsmQEPHzX/d0u0QrYG6KlL0=";
   npmFlags = [
     "--no-audit"
     "--no-fund"
@@ -56,8 +57,8 @@ buildNpmPackage {
   env.CI = "true";
 
   preBuild = ''
-    delta_codex_bundle=$(mktemp)
-    cp dist/cli.js "$delta_codex_bundle"
+    delta_codex_bundles=$(mktemp -d)
+    cp -R dist/. "$delta_codex_bundles"
   '';
   doCheck = true;
   checkPhase = ''
@@ -65,7 +66,7 @@ buildNpmPackage {
     npm run typecheck
     npm test
     npm run format:check
-    cmp dist/cli.js "$delta_codex_bundle"
+    diff -r dist "$delta_codex_bundles"
     runHook postCheck
   '';
 
@@ -80,6 +81,8 @@ buildNpmPackage {
     "$out/bin/delta-codex" --help > /dev/null
     test -f "$out/lib/node_modules/delta-codex/.codex-plugin/plugin.json"
     test -f "$out/lib/node_modules/delta-codex/hooks/hooks.json"
+    test -f "$out/lib/node_modules/delta-codex/.mcp.json"
+    test -f "$out/lib/node_modules/delta-codex/dist/panel.html"
     runHook postInstallCheck
   '';
 

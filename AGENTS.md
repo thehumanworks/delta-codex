@@ -5,6 +5,9 @@ and PARITY.md before changing its behavior. `src/bridge.ts` owns lifecycle;
 `src/codex/rpc.ts` talks to the shared daemon; `src/cli/delta.ts` owns Delta CLI
 calls; `src/recording/` owns durable delivery and translation.
 
+For UX work, read docs/ux-research.md and docs/ux-plan.md. They distinguish
+verified harness capabilities, documented app surfaces, and proposed behavior.
+
 Preserve stable producer IDs, sequence numbers, pending records, opaque Delta
 references, and Codex permission boundaries. Never repair a failed recording by
 deleting its state. Do not automatically approve tool requests or change hook
@@ -14,6 +17,11 @@ Run `npm run format` and `npm run verify` after changes. When Codex is available
 run `npm run test:native`; it uses an isolated profile and local fixture model.
 For packaging changes also run `npm run test:package`. Tests must not target a
 live Delta account or paid model endpoint. Rebuild the committed dist bundle.
+
+For MCP App changes run `npm run test:ui` with a Playwright Chromium install or
+`DELTA_CODEX_CHROMIUM`. Rebuild all dist artifacts, including the self-contained
+panel and third-party notices. Native discovery does not prove actual ChatGPT
+desktop rendering; record that acceptance separately in docs/testing.md.
 
 When Nix is available, run project commands inside `nix develop -c ...` from
 the checkout root. Use `npm ci` after dependency changes; shell entry does not

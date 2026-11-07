@@ -4,6 +4,11 @@
 flowchart LR
   C[Native Codex session] --> H[Trusted lifecycle hooks]
   S[Delta skill / CLI] --> B[Private local bridge]
+  P[Numbered presets] --> S
+  U[MCP App panel] --> M[Local stdio MCP server]
+  T[Agent typed tools] --> M
+  M --> OPL[Shared operations]
+  OPL --> B
   H --> B
   B <--> A[Existing Codex app-server daemon]
   B --> O[Atomic outbox + bindings + delivery ledger]
@@ -15,6 +20,35 @@ flowchart LR
 `dist/cli.js`; `bin/delta-codex.mjs` is a stable launcher. All dependencies are
 build/test dependencies. Plugin hook trust covers the launcher and bundled
 executable; do not turn the launcher into a downloader.
+
+`src/operations.ts` shares the operation boundary between CLI and MCP, resolving
+the native session's checkout before sharing. Read-only status contacts an
+existing bridge or reads a validated saved binding; it never starts recording.
+`src/mcp/server.ts` defines bounded typed tools and the panel resource. Discovery
+only describes capabilities. Native `_meta.threadId` binds session operations;
+explicit cross-session mutations are rejected. Sessionless hosts need an
+explicit target. Opaque Delta references are passed unchanged as argv values.
+
+The MCP server uses stdio and is separate from the authenticated bridge. It
+does not expose that socket to a network. `.mcp.json` forwards only the profile
+and executable override variables needed to match the hooks. In the 0.166
+compatibility loader, `cwd: "."` resolves to the installed plugin root; args
+do not interpolate `${PLUGIN_ROOT}`. Keep the native install regression test.
+
+`src/ui/` compiles into a self-contained `dist/panel.html`. It uses the standard
+MCP Apps bridge, with global/thread entrypoint metadata and feature-detected
+fullscreen/deep-link support. No CDN, remote scripts or direct network calls
+are needed by the iframe. Data is rendered as text. Visible status polls every
+15 seconds; refresh responses cannot overwrite a newer selection. UI mutation
+buttons are disabled while pending and each action has an operation ID.
+The server retains up to 256 mutation results (including ambiguous errors) per
+connection; this is retry protection, not durable exactly-once execution.
+After reconnect, inspect status before retrying. Durable delivery stays in the
+existing outbox. Approvals are handed back to the native session.
+
+`src/codex/presets.ts` edits only free numbered slots using Codex's config API,
+with an expected version to reject concurrent edits. Removal matches the exact
+original label and input. Configuration is never changed during discovery.
 
 `src/ipc.ts` owns one bridge per Codex profile. Hooks are short-lived clients of
 that bridge. An exclusive process lock prevents two writers, and a private
