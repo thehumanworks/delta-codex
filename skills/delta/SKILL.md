@@ -5,8 +5,13 @@ description: Share the current Codex conversation and Git checkout with Delta, j
 
 # Delta for Codex
 
+Focused entry points are available for [sharing](../share/SKILL.md),
+[joining](../join/SKILL.md), and [status checks](../status/SKILL.md). Use the
+matching skill for those tasks; this general skill also covers repository
+sync, history, asynchronous work, and recovery.
+
 Run the bundled CLI with `node <plugin-root>/bin/delta-codex.mjs`. Resolve
-`<plugin-root>` as two directories above this SKILL.md; use its absolute path and
+`<plugin-root>` as two directories above this skill's directory; use its absolute path and
 quote arguments. The bundle has no runtime npm dependencies. Do not assume the
 plugin's commands are installed on PATH. Results are JSON.
 

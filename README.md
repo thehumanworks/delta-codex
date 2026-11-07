@@ -63,13 +63,26 @@ and Windows daemon integration still need platform acceptance testing.
 
 ## Start collaborating
 
-Invoke the `delta-codex:delta` skill, or ask Codex:
+Choose a focused skill in the CLI's `/skills` picker, or type `$` to select it:
+
+| Skill                | Use it to                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------------- |
+| `delta-codex:share`  | Share this conversation privately, with an organization, or with email recipients.       |
+| `delta-codex:join`   | Open a Delta thread in a fresh Codex session with its shared checkout and context.       |
+| `delta-codex:status` | Check this session's recording, pending uploads, diagnostics, and collaborator presence. |
+| `delta-codex:delta`  | Configure repository sync, search history, run isolated work, or recover recording.      |
+
+For example, invoke `$delta-codex:status` to check this session. These are skill
+entry points; the plugin does not register native `/delta` slash commands or
+custom terminal widgets. You can also ask Codex directly:
 
 > Use Delta to share this conversation privately.
 
 > Share this conversation with ada@example.com.
 
 > Join this Delta thread: https://delta.dev/join/…
+
+> Check this session's Delta sync status.
 
 > Set up automatic private Delta sync for this repository.
 

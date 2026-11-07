@@ -153,7 +153,7 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
 )
 
 test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
-  'Codex installs the release layout and discovers all nine untrusted hooks',
+  'Codex installs the release layout and discovers all four skills and nine untrusted hooks',
   async () => {
     const temp = await mkdtemp(join(tmpdir(), 'delta-plugin-install-')),
       home = join(temp, 'codex'),
@@ -183,7 +183,12 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
         marketplacePath: join(root, '.agents', 'plugins', 'marketplace.json'),
         pluginName: 'delta-codex',
       })
-      expect(discovered.plugin.skills[0].name).toBe('delta-codex:delta')
+      expect(discovered.plugin.skills.map((skill: any) => skill.name).sort()).toEqual([
+        'delta-codex:delta',
+        'delta-codex:join',
+        'delta-codex:share',
+        'delta-codex:status',
+      ])
     } finally {
       await rpc.close()
       await rm(temp, { recursive: true, force: true })
