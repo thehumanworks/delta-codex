@@ -212,6 +212,7 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1').each(['fresh', 'migrate
       expect(hooks.data[0].errors).toEqual([])
       expect(hooks.data[0].hooks).toHaveLength(9)
       expect(hooks.data[0].hooks.every((hook: any) => hook.trustStatus === 'untrusted')).toBe(true)
+      expect((await rpc.call('config/read', {})).config.tui?.presets ?? {}).toEqual({})
       const discovered = await rpc.call('plugin/read', {
         marketplacePath: join(root, '.agents', 'plugins', 'marketplace.json'),
         pluginName: 'delta-codex',
@@ -272,6 +273,108 @@ test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1').each(['fresh', 'migrate
     }
   },
   60_000,
+)
+
+test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(
+  'packaged SessionStart installs presets once in the Codex profile without touching Delta sharing',
+  async () => {
+    const temp = await mkdtemp(join(tmpdir(), 'delta-preset-startup-'))
+    const home = join(temp, 'codex')
+    const directory = join(temp, 'recording')
+    const config = join(home, 'config.toml')
+    const env = {
+      ...process.env,
+      CODEX_HOME: home,
+      DELTA_CODEX_HOME: directory,
+      DELTA_CODEX_DELTA_BIN: join(temp, 'missing-delta'),
+    }
+    const cli = (args: string[], input?: string) =>
+      spawnSync(process.execPath, [resolve('dist/cli.js'), ...args], {
+        cwd: temp,
+        env,
+        input,
+        encoding: 'utf8',
+        timeout: 30_000,
+      })
+    await mkdir(join(home, 'app-server-daemon'), { recursive: true })
+    await writeFile(
+      join(home, 'app-server-daemon', 'settings.json'),
+      JSON.stringify({ shutdownGraceSeconds: 0, updater: { autoUpdateEnabled: false } }),
+    )
+    await writeFile(config, '# Keep this comment\n[tui.presets.1]\nlabel = "Mine"\ninput = "Keep me"\n')
+    try {
+      const daemon = spawnSync('codex', ['app-server', 'daemon', 'start'], {
+        cwd: temp,
+        env,
+        encoding: 'utf8',
+        timeout: 30_000,
+      })
+      expect(daemon.status, daemon.stderr).toBe(0)
+      // Exercise the actual bundled hook entrypoint explicitly; never change host trust.
+      const start = () => {
+        const result = cli(
+          ['hook'],
+          JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'preset-fixture', cwd: temp }),
+        )
+        expect(result.status, result.stderr).toBe(0)
+        return JSON.parse(result.stdout)
+      }
+      const first = start()
+      expect(first.systemMessage).toBeUndefined()
+      expect(first.hookSpecificOutput.additionalContext).toContain('2: Delta status')
+      const installed = await readFile(config, 'utf8')
+      expect(installed).toContain('# Keep this comment')
+      expect(installed).toContain('Keep me')
+      expect(installed).toContain('Delta join')
+      expect(JSON.parse(await readFile(join(home, 'delta', 'presets.json'), 'utf8')).status).toBe('complete')
+      await expect(readFile(join(directory, 'presets.json'))).rejects.toHaveProperty('code', 'ENOENT')
+      await writeFile(config, installed.replace(PRESETS[0]!.input, 'My custom status'))
+      expect(start().systemMessage).toBeUndefined()
+      expect(await readFile(config, 'utf8')).toContain('My custom status')
+      const removed = cli(['presets', 'remove'])
+      expect(removed.status, removed.stderr).toBe(0)
+      expect(JSON.parse(removed.stdout).changed).toBe(2)
+      expect(start().systemMessage).toBeUndefined()
+      const finalConfig = await readFile(config, 'utf8')
+      expect(finalConfig).toContain('My custom status')
+      expect(finalConfig).not.toContain('Delta join')
+      await expect(readFile(Recording.path(directory, 'preset-fixture'))).rejects.toHaveProperty(
+        'code',
+        'ENOENT',
+      )
+    } finally {
+      const bridge = cli(['bridge-stop'])
+      const daemon = spawnSync('codex', ['app-server', 'daemon', 'stop'], {
+        cwd: temp,
+        env,
+        encoding: 'utf8',
+        timeout: 30_000,
+      })
+      // Retain the profile if cleanup fails; never delete state under a running service.
+      if (bridge.status === 0 && daemon.status === 0) {
+        await deadline(
+          (async () => {
+            while (
+              await readFile(join(directory, 'bridge.json')).then(
+                () => true,
+                (error: NodeJS.ErrnoException) => {
+                  if (error.code !== 'ENOENT') throw error
+                  return false
+                },
+              )
+            )
+              await new Promise((resolve) => setTimeout(resolve, 20))
+          })(),
+          5000,
+          'Preset fixture bridge shutdown',
+        )
+        await rm(temp, { recursive: true, force: true })
+      }
+      expect(bridge.status, bridge.stderr).toBe(0)
+      expect(daemon.status, daemon.stderr).toBe(0)
+    }
+  },
+  90_000,
 )
 
 test.skipIf(process.env.DELTA_CODEX_NATIVE_TEST !== '1')(

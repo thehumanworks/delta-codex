@@ -314,7 +314,7 @@ export function createMcpServer(operations: Operations, html: () => Promise<stri
   )
   tool(
     'delta_presets',
-    'Inspect, explicitly install, or remove Delta numbered CLI shortcuts. Preserves occupied and edited slots. Installation is opt-in; discovery does not edit config.',
+    'Inspect, repair, or remove Delta numbered CLI shortcuts. Installed automatically on first trusted session start. Removal disables automatic setup and preserves edited slots. Discovery does not edit config.',
     { action: z.enum(['list', 'install', 'remove']) },
     false,
     (args) => operations.presets(args.action),

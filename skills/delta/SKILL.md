@@ -13,7 +13,7 @@ sync, history, asynchronous work, and recovery.
 Prefer the typed `delta_*` MCP tools when available. `delta_panel` opens the
 collaboration view; `delta_status` returns concise data. Session operations use
 the host's native thread ID rather than inferring from the newest session.
-Read [onboarding](../setup/SKILL.md) for optional numbered CLI presets. Skills
+Read [onboarding](../setup/SKILL.md) to inspect or repair automatically installed CLI presets. Skills
 remain the workflow layer; tools and UI do not change authorization or recovery
 rules. Use the bundled CLI below when tools are unavailable.
 

@@ -196,33 +196,47 @@ test('share resolves checkout from the exact native thread and refuses mismatch 
 })
 
 test('presets refuse an overfull config atomically and use native optimistic concurrency', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'delta-presets-conflict-'))
+  const layer = {
+    name: { type: 'user', file: join(directory, 'config.toml') },
+    config: {},
+    version: 'version-a',
+  }
   const slots = Object.fromEntries(
     Array.from({ length: 9 }, (_, i) => [String(i), { label: 'User', input: 'mine' }]),
   )
   const call = vi.fn().mockResolvedValue({
     config: { tui: { presets: slots } },
-    layers: [{ name: { type: 'user', file: '/config.toml' }, config: {}, version: 'version-a' }],
+    layers: [layer],
   })
   const close = vi.fn()
-  await expect(managePresets('install', { call, close } as unknown as Codex)).rejects.toThrow(
-    'Not enough empty',
-  )
-  expect(call).toHaveBeenCalledTimes(1)
-  expect(close).toHaveBeenCalled()
-  call
-    .mockReset()
-    .mockResolvedValueOnce({
-      config: {},
-      layers: [{ name: { type: 'user', file: '/config.toml' }, config: {}, version: 'version-a' }],
-    })
-    .mockRejectedValueOnce(new Error('version changed'))
-  await expect(managePresets('install', { call, close } as unknown as Codex)).rejects.toThrow(
-    'version changed',
-  )
-  expect(call).toHaveBeenLastCalledWith(
-    'config/batchWrite',
-    expect.objectContaining({ expectedVersion: 'version-a' }),
-  )
+  try {
+    await expect(managePresets('install', { call, close } as unknown as Codex)).rejects.toThrow(
+      'Not enough empty',
+    )
+    expect(call).toHaveBeenCalledTimes(2)
+    expect(close).toHaveBeenCalled()
+    call
+      .mockReset()
+      .mockResolvedValueOnce({
+        config: {},
+        layers: [layer],
+      })
+      .mockResolvedValueOnce({
+        config: {},
+        layers: [layer],
+      })
+      .mockRejectedValueOnce(new Error('version changed'))
+    await expect(managePresets('install', { call, close } as unknown as Codex)).rejects.toThrow(
+      'version changed',
+    )
+    expect(call).toHaveBeenLastCalledWith(
+      'config/batchWrite',
+      expect.objectContaining({ expectedVersion: 'version-a' }),
+    )
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
 })
 
 test('large output is structurally bounded and explicitly marked', () => {

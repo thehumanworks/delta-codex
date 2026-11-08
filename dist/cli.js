@@ -3604,7 +3604,7 @@ var require_stream = __commonJS({
       };
       duplex._final = function(callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open5() {
+          ws.once("open", function open6() {
             duplex._final(callback);
           });
           return;
@@ -3625,7 +3625,7 @@ var require_stream = __commonJS({
       };
       duplex._write = function(chunk, encoding, callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open5() {
+          ws.once("open", function open6() {
             duplex._write(chunk, encoding, callback);
           });
           return;
@@ -4149,7 +4149,7 @@ __export(store_exports, {
   freshBinding: () => freshBinding,
   stage: () => stage
 });
-import { join as join2 } from "node:path";
+import { join as join3 } from "node:path";
 function freshBinding(input2) {
   return {
     ...input2,
@@ -4202,7 +4202,7 @@ var init_store = __esm({
       state;
       serial = new Serial();
       static path(directory, session2) {
-        return join2(directory, "sessions", digest(session2) + ".json");
+        return join3(directory, "sessions", digest(session2) + ".json");
       }
       static async load(directory, session2) {
         const path = this.path(directory, session2), value = await readJson(path);
@@ -9006,7 +9006,7 @@ function isBackEdge(ctx, value) {
   const backEdges = ctx[STATE]?.backEdges;
   return backEdges !== void 0 && isRef(value) && backEdges.has(value);
 }
-var $ZodCyclicError, STATE, NO_ISSUES, recursive, NONE, ASSUMED, PROVEN, handoff, open4, memo;
+var $ZodCyclicError, STATE, NO_ISSUES, recursive, NONE, ASSUMED, PROVEN, handoff, open5, memo;
 var init_memoizer = __esm({
   "node_modules/zod/v4/core/memoizer.js"() {
     init_util();
@@ -9022,7 +9022,7 @@ var init_memoizer = __esm({
     NONE = 0;
     ASSUMED = 1;
     PROVEN = 2;
-    open4 = [];
+    open5 = [];
     memo = {
       alloc(_inst, payload, empty) {
         const bucket = handoff;
@@ -9031,7 +9031,7 @@ var init_memoizer = __esm({
         handoff = void 0;
         const entry = { value: empty, issues: null };
         bucket.set(payload.value, entry);
-        open4.push(entry);
+        open5.push(entry);
         return empty;
       },
       guard(inst) {
@@ -9102,10 +9102,10 @@ var init_memoizer = __esm({
               return payload;
             }
             handoff = bucket;
-            const depth = open4.length;
+            const depth = open5.length;
             const result = base(payload, ctx);
             handoff = void 0;
-            const entry = open4.length > depth ? open4.pop() : void 0;
+            const entry = open5.length > depth ? open5.pop() : void 0;
             if (result instanceof Promise) {
               return result.then((r2) => {
                 if (entry)
@@ -32446,13 +32446,172 @@ async function history(rpc, threadId, throughTurn) {
   }
 }
 
+// src/codex/presets.ts
+init_storage();
+import { mkdir as mkdir2, open as open2, stat, unlink as unlink2 } from "node:fs/promises";
+import { dirname as dirname2, join as join2 } from "node:path";
+var PRESETS = [
+  {
+    label: "Delta status",
+    input: "Use $delta-codex:status to show Delta sharing and sync status for this session."
+  },
+  {
+    label: "Delta share",
+    input: "Use $delta-codex:share to share this session privately. Ask for the organization if needed."
+  },
+  { label: "Delta join", input: "Use $delta-codex:join to join a Delta thread. Ask me for its link." }
+];
+var matches = (a, b) => a?.label === b.label && a?.input === b.input && Object.keys(a).length === 2;
+async function presetLock(path) {
+  await mkdir2(dirname2(path), { recursive: true, mode: 448 });
+  const lockPath = `${path}.lock`;
+  const busy = () => new Error("Delta preset setup is already running. Retry shortly.");
+  let lock;
+  try {
+    lock = await open2(lockPath, "wx", 384);
+  } catch (error62) {
+    if (error62.code !== "EEXIST") throw error62;
+    let recovery;
+    try {
+      recovery = await open2(`${lockPath}.recovery`, "wx", 384);
+    } catch {
+      throw busy();
+    }
+    try {
+      const owner = await readJson(lockPath).catch(() => void 0);
+      if (owner && Number.isSafeInteger(owner.pid) && owner.pid > 0) {
+        let exited = false;
+        try {
+          process.kill(owner.pid, 0);
+        } catch (error63) {
+          exited = error63.code === "ESRCH";
+        }
+        if (!exited) throw busy();
+      } else {
+        const info = await stat(lockPath).catch((error63) => {
+          if (error63.code !== "ENOENT") throw error63;
+          return void 0;
+        });
+        if (!info || Date.now() - info.mtimeMs < 1e4) throw busy();
+      }
+      await unlink2(lockPath).catch((error63) => {
+        if (error63.code !== "ENOENT") throw error63;
+      });
+      lock = await open2(lockPath, "wx", 384);
+    } finally {
+      await recovery.close();
+      await unlink2(`${lockPath}.recovery`);
+    }
+  }
+  try {
+    await lock.writeFile(JSON.stringify({ pid: process.pid }));
+    await lock.sync();
+  } catch (error62) {
+    await lock.close();
+    await unlink2(lockPath);
+    throw error62;
+  }
+  return async () => {
+    await lock.close();
+    await unlink2(lockPath);
+  };
+}
+async function managePresets(action, rpc = new Codex()) {
+  let unlock;
+  try {
+    const readConfig = async () => {
+      const response2 = await rpc.call("config/read", { includeLayers: true });
+      const layer2 = response2.layers?.find(
+        (l) => l.name.type === "user" && !l.name.profile && !l.disabledReason
+      );
+      if (!layer2?.name.file || !layer2.version)
+        throw new Error("Codex did not expose a writable user configuration layer.");
+      return { response: response2, layer: layer2 };
+    };
+    let { response, layer } = await readConfig();
+    const configFile = layer.name.file;
+    const statePath = join2(dirname2(configFile), "delta", "presets.json");
+    if (action !== "list") {
+      unlock = await presetLock(statePath);
+      ({ response, layer } = await readConfig());
+      if (layer.name.file !== configFile) throw new Error("Codex configuration layer changed; retry setup.");
+    }
+    const setup = await readJson(statePath);
+    if (setup && (setup.version !== 1 || !["complete", "disabled"].includes(setup.status)))
+      throw new Error("Unrecognized Delta preset setup state; left unchanged.");
+    const effective = response.config.tui?.presets ?? {};
+    const owned = layer.config.tui?.presets ?? {};
+    const edits = [];
+    const assigned = [];
+    if (action === "install" || action === "ensure" && !setup) {
+      const used = new Set(Object.keys(effective));
+      for (const preset of PRESETS) {
+        const existing = Object.entries(effective).find(
+          ([, value]) => matches(value, preset) || action === "ensure" && value?.label === preset.label && typeof value.input === "string"
+        );
+        const slot = existing?.[0] ?? Array.from({ length: 10 }, (_2, i) => String((i + 1) % 10)).find((s) => !used.has(s));
+        if (!slot)
+          throw new Error("Not enough empty preset slots. No changes were made. Manage slots with /presets.");
+        used.add(slot);
+        assigned.push({ slot, label: preset.label });
+        if (!existing) edits.push({ keyPath: `tui.presets.${slot}`, value: preset, mergeStrategy: "replace" });
+      }
+    } else if (action === "remove") {
+      for (const [slot, value] of Object.entries(owned)) {
+        if (/^[0-9]$/.test(slot) && PRESETS.some((p2) => matches(value, p2)))
+          edits.push({ keyPath: `tui.presets.${slot}`, value: null, mergeStrategy: "replace" });
+      }
+    }
+    if (edits.length)
+      await rpc.call("config/batchWrite", {
+        filePath: layer.name.file,
+        expectedVersion: layer.version,
+        edits
+      });
+    if (action !== "list" && (action !== "ensure" || !setup))
+      await atomicJson(statePath, {
+        version: 1,
+        status: action === "remove" ? "disabled" : "complete"
+      });
+    return {
+      action,
+      changed: edits.length,
+      assigned,
+      presets: action === "list" ? effective : void 0,
+      automaticSetup: action === "remove" ? "disabled" : action === "list" ? setup?.status ?? "pending" : setup?.status === "disabled" && action === "ensure" ? "disabled" : "complete",
+      guidance: "Use /presets to view shortcuts. Restart the CLI if its menu has not refreshed. Edited shortcuts are yours and will not be removed."
+    };
+  } finally {
+    try {
+      await unlock?.();
+    } finally {
+      await rpc.close();
+    }
+  }
+}
+async function initializePresets(rpc = new Codex()) {
+  try {
+    const result = await deadline(managePresets("ensure", rpc), 5e3, "Delta preset setup");
+    return result.changed ? {
+      context: `Delta presets installed: ${result.assigned.map((p2) => `${p2.slot}: ${p2.label}`).join(", ")}. Open /presets; restart the CLI if its menu has not refreshed.`
+    } : {};
+  } catch (error62) {
+    return {
+      warning: `Delta presets could not be installed: ${error62 instanceof Error ? error62.message : String(error62)} Use presets install to retry, or presets remove to disable automatic setup.`
+    };
+  } finally {
+    await rpc.close().catch(() => {
+    });
+  }
+}
+
 // src/main.ts
 init_storage();
 
 // src/ipc.ts
 import { createServer, createConnection } from "node:net";
-import { mkdir as mkdir3, chmod, unlink as unlink2, open as open3, stat as stat2, lstat } from "node:fs/promises";
-import { join as join4 } from "node:path";
+import { mkdir as mkdir4, chmod, unlink as unlink3, open as open4, stat as stat3, lstat } from "node:fs/promises";
+import { join as join5 } from "node:path";
 import { tmpdir } from "node:os";
 import { spawn as spawn3 } from "node:child_process";
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -32657,7 +32816,7 @@ function recordTurns(state, turns) {
 }
 
 // src/recording/images.ts
-import { open as open2, stat } from "node:fs/promises";
+import { open as open3, stat as stat2 } from "node:fs/promises";
 var MAX_IMAGE = 20 * 1024 * 1024;
 var Images = class {
   cache = /* @__PURE__ */ new Map();
@@ -32684,11 +32843,11 @@ var Images = class {
     return result;
   }
   async load(path) {
-    const info = await stat(path);
+    const info = await stat2(path);
     if (!info.isFile() || info.size > MAX_IMAGE) throw new Error("requires an image file of at most 20 MiB");
     const stamp = `${info.size}:${info.mtimeMs}`, cached2 = this.cache.get(path);
     if (cached2?.stamp === stamp) return cached2.url;
-    const file2 = await open2(path, "r");
+    const file2 = await open3(path, "r");
     let buffer;
     try {
       const data = Buffer.alloc(Math.min(info.size + 1, MAX_IMAGE + 1));
@@ -33209,8 +33368,8 @@ var RemoteView = class {
 init_storage();
 
 // src/settings.ts
-import { join as join3, isAbsolute } from "node:path";
-import { readFile as readFile2, appendFile, mkdir as mkdir2 } from "node:fs/promises";
+import { join as join4, isAbsolute } from "node:path";
+import { readFile as readFile2, appendFile, mkdir as mkdir3 } from "node:fs/promises";
 init_storage();
 var NotRepositoryError = class extends Error {
 };
@@ -33224,7 +33383,7 @@ async function repository(cwd) {
 }
 async function readPolicy(cwd) {
   const root = await repository(cwd);
-  const value = await readJson(join3(root, ".delta", "settings.json"));
+  const value = await readJson(join4(root, ".delta", "settings.json"));
   if (!value) return { mode: "manual" };
   const threads = value.threads;
   if (!threads || !["manual", "private", "organization"].includes(threads.mode) || threads.mode !== "manual" && (typeof threads.organization !== "string" || !threads.organization.trim()))
@@ -33244,17 +33403,17 @@ async function writePolicy(cwd, policy) {
     );
   const excludeResult = await run(["git", "-C", root, "rev-parse", "--git-path", "info/exclude"]);
   if (excludeResult.code !== 0) throw new Error("Cannot locate Git\u2019s local exclude file");
-  const exclude = isAbsolute(excludeResult.stdout.trim()) ? excludeResult.stdout.trim() : join3(root, excludeResult.stdout.trim());
+  const exclude = isAbsolute(excludeResult.stdout.trim()) ? excludeResult.stdout.trim() : join4(root, excludeResult.stdout.trim());
   const current = await readFile2(exclude, "utf8").catch((error62) => {
     if (error62.code === "ENOENT") return "";
     throw error62;
   });
   if (!current.split("\n").includes("/.delta/")) {
-    await mkdir2(join3(exclude, ".."), { recursive: true });
+    await mkdir3(join4(exclude, ".."), { recursive: true });
     await appendFile(exclude, `${current.endsWith("\n") || !current ? "" : "\n"}/.delta/
 `);
   }
-  const path = join3(root, ".delta", "settings.json"), previous = await readJson(path);
+  const path = join4(root, ".delta", "settings.json"), previous = await readJson(path);
   await atomicJson(path, { ...previous, threads: policy });
   return { root, policy };
 }
@@ -34195,7 +34354,7 @@ ${row.text}`;
 
 // src/ipc.ts
 init_storage();
-var endpointFile = (directory) => join4(directory, "bridge.json");
+var endpointFile = (directory) => join5(directory, "bridge.json");
 function readFrame(socket, onValue) {
   let pending = "";
   socket.setEncoding("utf8");
@@ -34281,16 +34440,16 @@ async function ensureBridge(directory, entrypoint) {
   );
 }
 async function serve(directory) {
-  await mkdir3(directory, { recursive: true, mode: 448 });
+  await mkdir4(directory, { recursive: true, mode: 448 });
   if (process.platform !== "win32") await chmod(directory, 448);
-  const lockPath = join4(directory, "bridge.lock");
+  const lockPath = join5(directory, "bridge.lock");
   let lock;
   try {
-    lock = await open3(lockPath, "wx", 384);
+    lock = await open4(lockPath, "wx", 384);
   } catch (error62) {
     if (error62.code !== "EEXIST") throw error62;
     const owner = await readJson(lockPath).catch(() => void 0);
-    if (!owner && Date.now() - (await stat2(lockPath)).mtimeMs < 1e4) return;
+    if (!owner && Date.now() - (await stat3(lockPath)).mtimeMs < 1e4) return;
     if (owner)
       try {
         process.kill(owner.pid, 0);
@@ -34300,31 +34459,31 @@ async function serve(directory) {
       }
     let claim2;
     try {
-      claim2 = await open3(`${lockPath}.recovery`, "wx", 384);
+      claim2 = await open4(`${lockPath}.recovery`, "wx", 384);
     } catch {
       return;
     }
     try {
-      await unlink2(lockPath);
-      lock = await open3(lockPath, "wx", 384);
+      await unlink3(lockPath);
+      lock = await open4(lockPath, "wx", 384);
     } finally {
       await claim2.close();
-      await unlink2(`${lockPath}.recovery`).catch(() => {
+      await unlink3(`${lockPath}.recovery`).catch(() => {
       });
     }
   }
   await lock.writeFile(JSON.stringify({ pid: process.pid }));
   await lock.sync();
   const token = randomBytes(32).toString("hex");
-  const socketDirectory = join4(tmpdir(), `delta-codex-${digest(directory).slice(0, 20)}`);
-  await mkdir3(socketDirectory, { recursive: true, mode: 448 });
+  const socketDirectory = join5(tmpdir(), `delta-codex-${digest(directory).slice(0, 20)}`);
+  await mkdir4(socketDirectory, { recursive: true, mode: 448 });
   if (process.platform !== "win32") {
     const info = await lstat(socketDirectory);
     if (info.isSymbolicLink() || info.uid !== process.getuid?.() || info.mode & 63)
       throw new Error("Insecure Delta socket directory");
   }
-  const socketPath = process.platform === "win32" ? `\\\\.\\pipe\\delta-codex-${digest(directory).slice(0, 24)}` : join4(socketDirectory, "bridge.sock");
-  if (process.platform !== "win32") await unlink2(socketPath).catch(() => {
+  const socketPath = process.platform === "win32" ? `\\\\.\\pipe\\delta-codex-${digest(directory).slice(0, 24)}` : join5(socketDirectory, "bridge.sock");
+  if (process.platform !== "win32") await unlink3(socketPath).catch(() => {
   });
   const bridge = new Bridge(directory);
   const server = createServer((socket) => {
@@ -34364,10 +34523,10 @@ async function serve(directory) {
     closing = true;
     server.close();
     await bridge.close();
-    await unlink2(endpointFile(directory)).catch(() => {
+    await unlink3(endpointFile(directory)).catch(() => {
     });
     await lock.close();
-    await unlink2(lockPath).catch(() => {
+    await unlink3(lockPath).catch(() => {
     });
     process.exit(0);
   };
@@ -34420,69 +34579,7 @@ async function dispatch(bridge, request2, shutdown) {
 
 // src/operations.ts
 import { readdir } from "node:fs/promises";
-import { join as join5 } from "node:path";
-
-// src/codex/presets.ts
-var PRESETS = [
-  {
-    label: "Delta status",
-    input: "Use $delta-codex:status to show Delta sharing and sync status for this session."
-  },
-  {
-    label: "Delta share",
-    input: "Use $delta-codex:share to share this session privately. Ask for the organization if needed."
-  },
-  { label: "Delta join", input: "Use $delta-codex:join to join a Delta thread. Ask me for its link." }
-];
-var matches = (a, b) => a?.label === b.label && a?.input === b.input && Object.keys(a).length === 2;
-async function managePresets(action, rpc = new Codex()) {
-  try {
-    const response = await rpc.call("config/read", { includeLayers: true });
-    const layer = response.layers?.find(
-      (l) => l.name.type === "user" && !l.name.profile && !l.disabledReason
-    );
-    if (!layer?.name.file || !layer.version)
-      throw new Error("Codex did not expose a writable user configuration layer.");
-    const effective = response.config.tui?.presets ?? {};
-    const owned = layer.config.tui?.presets ?? {};
-    const edits = [];
-    const assigned = [];
-    if (action === "install") {
-      const used = new Set(Object.keys(effective));
-      for (const preset of PRESETS) {
-        const existing = Object.entries(effective).find(([, value]) => matches(value, preset));
-        const slot = existing?.[0] ?? Array.from({ length: 10 }, (_2, i) => String((i + 1) % 10)).find((s) => !used.has(s));
-        if (!slot)
-          throw new Error("Not enough empty preset slots. No changes were made. Manage slots with /presets.");
-        used.add(slot);
-        assigned.push({ slot, label: preset.label });
-        if (!existing) edits.push({ keyPath: `tui.presets.${slot}`, value: preset, mergeStrategy: "replace" });
-      }
-    } else if (action === "remove") {
-      for (const [slot, value] of Object.entries(owned)) {
-        if (/^[0-9]$/.test(slot) && PRESETS.some((p2) => matches(value, p2)))
-          edits.push({ keyPath: `tui.presets.${slot}`, value: null, mergeStrategy: "replace" });
-      }
-    }
-    if (edits.length)
-      await rpc.call("config/batchWrite", {
-        filePath: layer.name.file,
-        expectedVersion: layer.version,
-        edits
-      });
-    return {
-      action,
-      changed: edits.length,
-      assigned,
-      presets: action === "list" ? effective : void 0,
-      guidance: "Use /presets to view shortcuts. Restart the CLI if its menu has not refreshed. Edited shortcuts are yours and will not be removed."
-    };
-  } finally {
-    await rpc.close();
-  }
-}
-
-// src/operations.ts
+import { join as join6 } from "node:path";
 init_storage();
 init_store();
 var navigation = (session2, cwd) => ({
@@ -34549,13 +34646,13 @@ var Operations = class {
     }
   }
   async recordings() {
-    const files = await readdir(join5(this.directory, "sessions")).catch((e) => {
+    const files = await readdir(join6(this.directory, "sessions")).catch((e) => {
       if (e.code === "ENOENT") return [];
       throw e;
     });
     const sessions = [];
     for (const file2 of files.filter((f2) => /^[a-f0-9]+\.json$/.test(f2)).slice(0, 100)) {
-      const saved = await readJson(join5(this.directory, "sessions", file2));
+      const saved = await readJson(join6(this.directory, "sessions", file2));
       if (saved?.session) sessions.push(await this.status(saved.session));
     }
     return { sessions, truncated: files.length > 100 };
@@ -34604,7 +34701,7 @@ var Operations = class {
 
 // src/mcp/server.ts
 import { readFile as readFile3 } from "node:fs/promises";
-import { dirname as dirname2, join as join6 } from "node:path";
+import { dirname as dirname3, join as join7 } from "node:path";
 
 // node_modules/zod/v3/helpers/util.js
 var util;
@@ -44672,7 +44769,7 @@ function createMcpServer(operations, html) {
   );
   tool(
     "delta_presets",
-    "Inspect, explicitly install, or remove Delta numbered CLI shortcuts. Preserves occupied and edited slots. Installation is opt-in; discovery does not edit config.",
+    "Inspect, repair, or remove Delta numbered CLI shortcuts. Installed automatically on first trusted session start. Removal disables automatic setup and preserves edited slots. Discovery does not edit config.",
     { action: external_exports.enum(["list", "install", "remove"]) },
     false,
     (args) => operations.presets(args.action)
@@ -44692,7 +44789,7 @@ function createMcpServer(operations, html) {
 async function serveMcp(entrypoint) {
   const server = createMcpServer(
     new Operations(entrypoint),
-    () => readFile3(join6(dirname2(entrypoint), "panel.html"), "utf8")
+    () => readFile3(join7(dirname3(entrypoint), "panel.html"), "utf8")
   );
   await server.connect(new StdioServerTransport());
 }
@@ -44810,7 +44907,16 @@ async function main() {
         if (input2.length > MAX_FRAME) throw new Error("Hook payload too large");
       }
       const event = hookEvent = JSON.parse(input2);
-      result = ["Interrupt", "SessionEnd"].includes(event.hook_event_name) ? await request(directory, { method: "hook", params: event }, 1800) : await call("hook", event, 25e3);
+      const [hook, presets] = await Promise.all([
+        ["Interrupt", "SessionEnd"].includes(event.hook_event_name) ? request(directory, { method: "hook", params: event }, 1800) : call("hook", event, 25e3),
+        event.hook_event_name === "SessionStart" ? initializePresets() : void 0
+      ]);
+      if (presets?.context && hook.hookSpecificOutput)
+        hook.hookSpecificOutput.additionalContext += `
+${presets.context}`;
+      if (presets?.warning)
+        hook.systemMessage = [hook.systemMessage, presets.warning].filter(Boolean).join("\n");
+      result = hook;
       break;
     }
     case "doctor": {

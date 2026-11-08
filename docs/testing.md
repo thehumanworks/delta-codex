@@ -10,7 +10,7 @@ described in [validation](validation.md).
 | Portable behavior | Durable records, receipts, permissions, preparation races, opaque attachment references, cloud-vs-local status                                                       | `npm run verify`       |
 | MCP contracts     | Side-effect-free discovery, tool schemas, native session binding, cross-session refusal, duplicate/ambiguous operations, bounded output and no transcript in status  | Included in `npm test` |
 | Native harness    | Real installation with five skills, nine untrusted hooks, MCP resource/tools, isolated profile forwarding and exact calling thread                                   | `npm run test:native`  |
-| Native presets    | Versioned edits, occupied slots, idempotent install, preserved comments and customized entries                                                                       | `npm run test:native`  |
+| Native presets    | Packaged SessionStart auto-installation, versioned edits, occupied slots, preserved comments/customizations, persistent removal and separate recording storage       | `npm run test:native`  |
 | Browser           | Built iframe through the standard SDK host bridge; share validation, join/navigation, errors, selection, cancellation, light/dark/narrow layout, optional fullscreen | `npm run test:ui`      |
 | Package           | Clean npm installation, bundled MCP startup/resource read, required assets/licenses, no runtime npm dependencies or temporary plans                                  | `npm run test:package` |
 | Nix               | Pinned dependency integrity, reproducible executable/panel/notices, portable tests and installed executable                                                          | `nix flake check`      |

@@ -23,7 +23,7 @@ It is not an official Zed or OpenAI release. Version **0.2.0** targets Codex CLI
   them, and inspect their results and pending approvals.
 - Search shared history, inspect thread trees, fork, merge, manage teams, and
   preserve rejected offline changes before recovery.
-- Use typed MCP tools, opt-in numbered CLI presets, and an MCP App collaboration
+- Use typed MCP tools, automatically installed CLI presets, and an MCP App collaboration
   panel with sharing, joining, status, recovery and child-run controls.
 
 The plugin uses the [Delta CLI integration contract](https://delta.dev/docs/cli/build-a-plugin)
@@ -102,11 +102,15 @@ that source to the public HTTPS URL if desired.
 
 ### Finish installation
 
-Restart Codex, open **`/hooks`**, and review the nine Delta hooks. Start a new
-session in a Git repository and invoke **`$delta-codex:setup`** to check account
-readiness and optionally install the numbered CLI presets. In the desktop app,
-restart the app and use **Settings → Hooks** to review them. Hook trust is
-required and is never bypassed by the installer.
+Restart Codex, open **`/hooks`**, and review the nine Delta hooks. The first
+session after hook review automatically installs **Delta status**, **Delta
+share**, and **Delta join** in free `/presets` slots. No separate setup request
+is needed. Restart the CLI if its preset menu has not refreshed.
+
+Invoke **`$delta-codex:setup`** to check account readiness. In the desktop app,
+restart the app and use **Settings → Hooks** to review them. Codex's install
+command registers the plugin; automatic preset setup runs at the first trusted
+session start. Hook trust is required and is never bypassed by the installer.
 
 ### Update from GitHub
 
@@ -155,7 +159,7 @@ Choose a focused skill in the CLI's `/skills` picker, or type `$` to select it:
 | `delta-codex:join`   | Open a Delta thread in a fresh Codex session with its shared checkout and context.       |
 | `delta-codex:status` | Check this session's recording, pending uploads, diagnostics, and collaborator presence. |
 | `delta-codex:delta`  | Configure repository sync, search history, run isolated work, or recover recording.      |
-| `delta-codex:setup`  | Check readiness and optionally install numbered CLI shortcuts.                           |
+| `delta-codex:setup`  | Check readiness and inspect or repair numbered CLI shortcuts.                            |
 
 For example, invoke `$delta-codex:status` to check this session. These are skill
 entry points; the plugin does not register native `/delta` slash commands or
@@ -171,7 +175,8 @@ custom terminal widgets. You can also ask Codex directly:
 
 > Set up automatic private Delta sync for this repository.
 
-For CLI shortcuts, ask to install Delta presets or run:
+CLI shortcuts are installed automatically at the first trusted session start.
+To repair or reinstall them, ask to install Delta presets or run:
 
 ```sh
 node /path/to/delta-codex/bin/delta-codex.mjs presets install
@@ -179,8 +184,12 @@ node /path/to/delta-codex/bin/delta-codex.mjs presets install
 
 Open `/presets` to see the assigned numbered slots for **Delta status**, **Delta
 share**, and **Delta join**. The installer uses free slots and preserves existing
-shortcuts. `presets list` inspects them; `presets remove` removes only unchanged
-Delta entries. Restart the CLI if its menu has not refreshed. Skills remain
+shortcuts. After successful setup, later sessions preserve entries you edit or
+delete. `presets list` inspects them; `presets remove` removes only unchanged
+Delta entries and disables automatic setup. `presets install` explicitly
+restores them. Setup state lives in the Codex profile's `delta/presets.json`,
+independently of `DELTA_CODEX_HOME`. If there is not enough room, setup changes
+no shortcuts and reports the problem; free slots and retry. Skills remain
 available and are the workflow instructions behind these shortcuts.
 
 In a ChatGPT app host with a local executor and MCP Apps support, ask to open

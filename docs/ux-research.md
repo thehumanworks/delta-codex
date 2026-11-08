@@ -378,3 +378,24 @@ matches the OpenAI package's peer range; overriding its older Zod dependency
 with the directly pinned 4.6.7 removes the reported collection-validation
 advisory. These choices are backed by protocol and browser tests, rather than
 forcing incompatible peer versions.
+
+## Automatic preset installation — 2026-11-08
+
+The user expects installing Delta to supply its CLI shortcuts. The earlier
+optional-install design adds an unnecessary second setup request and is
+superseded by automatic installation at the first trusted `SessionStart`.
+
+The current [packaging documentation](https://developers.openai.com/plugins/build/plugins)
+does not declare a preset bundle or install callback. Its onboarding skill runs
+when the user invokes setup; it is not a deterministic installation hook.
+The supported [hook lifecycle](https://learn.chatgpt.com/docs/hooks#sessionstart)
+provides `SessionStart`, and hook review remains required. Consequently,
+automatic setup must run when the enabled, trusted plugin starts, rather than
+claiming `codex plugin add` itself executes a preset installer.
+
+Use native versioned config edits, reserve only free slots, and remember
+successful setup per Codex profile. Later sessions must preserve user edits
+and removals. Explicit removal also disables automatic setup; explicit install
+repairs it. Full slots or unavailable config must produce a recoverable notice
+without blocking the session or interfering with recording. MCP discovery
+continues to leave config and sharing unchanged.

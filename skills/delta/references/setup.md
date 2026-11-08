@@ -19,6 +19,11 @@ For a local checkout of this plugin:
 4. Review its hooks in `/hooks` or the desktop app's hook settings.
 5. Start a new Codex session in a Git checkout and invoke `$delta`.
 
+The first trusted SessionStart automatically installs status/share/join CLI
+presets into free slots. Open `/presets`; restart the CLI if its menu has not
+refreshed. Setup runs once per Codex profile. Explicit `presets remove` opts out
+and preserves customized entries; `presets install` restores the defaults.
+
 For installation from GitHub or migration from the old `delta-codex-local`
 marketplace, follow the repository's [installation instructions](../../../README.md#install).
 Remove the old plugin before installing under the new marketplace name to

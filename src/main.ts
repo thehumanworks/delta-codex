@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { Delta } from './cli/delta.ts'
 import { Codex } from './codex/rpc.ts'
+import { initializePresets } from './codex/presets.ts'
 import { run, MAX_FRAME } from './core/process.ts'
 import { dataDirectory } from './core/storage.ts'
 import { request, serve } from './ipc.ts'
@@ -128,9 +129,17 @@ async function main() {
       }
       const event = (hookEvent = JSON.parse(input))
       // End/interrupt have a three-second host budget. They only enqueue cleanup.
-      result = ['Interrupt', 'SessionEnd'].includes(event.hook_event_name)
-        ? await request(directory, { method: 'hook', params: event }, 1800)
-        : await call('hook', event, 25_000)
+      const [hook, presets] = await Promise.all([
+        ['Interrupt', 'SessionEnd'].includes(event.hook_event_name)
+          ? request(directory, { method: 'hook', params: event }, 1800)
+          : call('hook', event, 25_000),
+        event.hook_event_name === 'SessionStart' ? initializePresets() : undefined,
+      ])
+      if (presets?.context && hook.hookSpecificOutput)
+        hook.hookSpecificOutput.additionalContext += `\n${presets.context}`
+      if (presets?.warning)
+        hook.systemMessage = [hook.systemMessage, presets.warning].filter(Boolean).join('\n')
+      result = hook
       break
     }
     case 'doctor': {

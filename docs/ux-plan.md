@@ -1,6 +1,8 @@
 # Delta UX plan and delivery
 
 Status: **local implementation delivered in 0.2.0; platform acceptance remains**.
+Follow-up: presets now install automatically at the first trusted session
+start; see the [2026-11-08 revision](#automatic-presets--2026-11-08).
 The proposal below was recorded before implementation from the
 [2026-11-07 research](ux-research.md). The
 [delivery record](#delivered-implementation--2026-11-07) describes what shipped
@@ -251,3 +253,18 @@ additional host-specific acceptance. Actual ChatGPT desktop sidebar placement,
 rendering and deep-link routing must be checked in that application; a browser
 fixture does not prove them. The implemented standard tools and inline panel
 remain usable without those optional extensions.
+
+## Automatic presets — 2026-11-08
+
+The user expects the plugin to supply its shortcuts as part of installation.
+This supersedes the proposal's optional preset step. The first trusted
+SessionStart installs status/share/join into free slots without an agent turn.
+Codex's install command itself has no documented preset installation callback.
+Hook review remains the required activation boundary.
+
+Setup is remembered per writable Codex profile, so later starts preserve edits
+and deletions. Explicit removal disables automatic setup; explicit installation
+repairs it. Concurrent setup uses a local process lock and native optimistic
+config writes. Capacity, permission or connection failures leave existing slots
+intact, produce a recoverable notice, and do not block the recording hook.
+MCP discovery still leaves configuration and sharing unchanged.

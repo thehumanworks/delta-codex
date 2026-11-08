@@ -1,5 +1,5 @@
 {
-  "description": "Delta records explicitly shared Codex sessions and protects turns after collaborator takeover.",
+  "description": "Delta installs CLI presets on first trusted startup, records explicitly shared Codex sessions, and protects turns after collaborator takeover.",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,7 @@
             "type": "command",
             "command": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
             "commandWindows": "node \"${PLUGIN_ROOT}/bin/delta-codex.mjs\" hook",
+            "statusMessage": "Preparing Delta shortcuts and session",
             "timeout": 30
           }
         ]

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Install status/share/join presets automatically on the first trusted session
+  start. Preserve occupied slots, later edits/deletions, and explicit removal.
+  Report setup failures without blocking sessions or changing sharing state.
 - Rename the marketplace from `delta-codex-local` to `delta-codex`. Install with
   `codex plugin add delta-codex@delta-codex`; existing installations should follow
   the README migration steps to avoid duplicate hooks and MCP tools.
